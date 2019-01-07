@@ -92,6 +92,7 @@ celerybeat-schedule
 .venv
 env/
 venv/
+/venv
 ENV/
 env.bak/
 venv.bak/
@@ -116,4 +117,5 @@ dmypy.json
 
 # Own things
 /.idea
-/venv
+.idea
+
