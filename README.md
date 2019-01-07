@@ -1,3 +1,2 @@
 # vacation_manager
 
-test
