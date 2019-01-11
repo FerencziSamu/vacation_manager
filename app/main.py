@@ -3,12 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 POSTGRES = {
-    'user': 'postgres',
+    'user': 'test',
     'pw': 'password',
-    'db': 'postgres',
-    'host': '0.0.0.0',
-    'port': '5432',
+    'db': 'test_db',
+    'host': 'db',
+    'port': '5432'
 }
+
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://%(user)s:\
 %(pw)s@%(host)s:%(port)s/%(db)s' % POSTGRES
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -49,5 +51,5 @@ def hello():
 
 
 if __name__ == '__main__':
-    app.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
+    app.secret_key = 'password'
     app.run(host='0.0.0.0', debug=True, port=5000)
