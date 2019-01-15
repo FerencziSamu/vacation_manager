@@ -1,8 +1,8 @@
-from flask import Flask, redirect, url_for, session, request, render_template
+from flask import Flask, redirect, url_for, session, request, render_template, flash
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from flask_login import LoginManager, current_user
+from flask_login import LoginManager, current_user, UserMixin, login_user, logout_user
 
 import os
 import json
@@ -27,15 +27,11 @@ db = SQLAlchemy(app)
 db.init_app(app)
 
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    token = db.Column(db.String(120), nullable=True)
-
-    def __init__(self, username, email):
-        self.username = username
-        self.email = email
+    role = db.Column(db.String(120), nullable=True, default='Unauthorized')
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -47,7 +43,7 @@ class Request(db.Model):
 
 db.drop_all()
 db.create_all()
-Admin = User('Samu', 'samu77@freemail.hu')
+Admin = User(username='Samu', email='samu77@freemail.hu', role='admin')
 db.session.add(Admin)
 db.session.commit()
 
@@ -56,9 +52,14 @@ db.session.commit()
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 login_manager = LoginManager(app)
-login_manager.login_view = "login"
-login_manager.session_protection = "strong"
+# login_manager.login_view = "login"
+# login_manager.session_protection = "strong"
 login_manager.init_app(app)
+
+
+@login_manager.user_loader
+def get_user(ident):
+    return User.query.get(int(ident))
 
 
 class Auth:
@@ -109,19 +110,18 @@ def callback():
             db.session.add(user)
             db.session.commit()
 
-            # flash('You are now registered and can log in!', 'success')
-            redirect(url_for('login'))
+            flash('You are now registered and can log in!')
+            redirect(url_for('success'))
+            login_user(user)
 
             if user is None:
-                tokens = json.dumps(token)
-                name = user_data['name']
 
-                user = User(username=name, email=email, token=tokens)
+                user = User()
                 db.session.add(user)
                 db.session.commit()
 
-            # login_user(user)
-            return redirect(url_for('login'))
+            flash('You are now registered!')
+            return redirect(url_for('success'))
         return 'Could not fetch your information.'
 
 
@@ -150,12 +150,22 @@ def home():
     return render_template('home.html')
 
 
+@app.route('/success', methods=['GET'])
+def success():
+    return render_template('success.html')
+
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    logout_user()
+    return render_template('home.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         google = get_google_auth()
-        auth_url, state = google.authorization_url(
-        Auth.AUTH_URI, access_type='offline')
+        auth_url, state = google.authorization_url(Auth.AUTH_URI, access_type='offline')
         session['oauth_state'] = state
         return render_template('login.html', auth_url=auth_url)
     return render_template('home.html')

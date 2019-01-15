@@ -1,4 +1,7 @@
 {% block body %}
   <h1>Login</h1>
   <a href="{{auth_url}}" class="btn btn-primary btn-block" style="padding: 15px 0;">Login with Google</a>
+{% if current_user.is_authenticated %}
+  Hi {{ current_user.name }}!
+{% endif %}
 {% endblock %}
