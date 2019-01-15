@@ -1,13 +1,17 @@
 {% block body %}
 <div class="jumbotron text-center">
     <h1>Welcome to Holiday Manager</h1>
+    {% if current_user.is_anonymous %}
+    <a href="{{auth_url}}" class="btn btn-primary btn-block" style="padding: 15px 0;">Login with Google</a>
+    {% endif%}
+    {% if current_user.is_authenticated %}
+    Hi {{ current_user.name }}!
 
-    <a href="/register" class="btn btn-primary btn-lg">Register</a>
-    <a href="/login" class="btn btn-success btn-lg">Login</a>
 
     <p class="lead">Congratulations! You have successfully registered to the application, please wait until
-        an administrator provides you the necessary accesses! Thank you</p>
+        an administrator provides you the necessary accesses! Thank you!</p>
 
-
+    <a href="/logout" class="btn btn-primary btn-block" style="paddin: 15px 0;">Logout</a>
+    {% endif %}
 </div>
 {% endblock %}

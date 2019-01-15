@@ -2,14 +2,14 @@ from flask import Flask, redirect, url_for, session, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from flask_login import LoginManager, current_user, UserMixin, login_user, logout_user, login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
 import os
 import json
 
 
 # Postgres and db set up
-
-
 app = Flask(__name__)
 POSTGRES = {
     'user': 'test',
@@ -22,9 +22,11 @@ POSTGRES = {
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://%(user)s:\
 %(pw)s@%(host)s:%(port)s/%(db)s' % POSTGRES
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+admin = Admin(app, name='vacation_manager', template_mode='bootstrap3')
 
 db = SQLAlchemy(app)
 db.init_app(app)
@@ -46,9 +48,13 @@ class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
 
+admin.add_view(ModelView(User, db.session))
+admin.add_view(ModelView(Request, db.session))
+
+
 db.drop_all()
 db.create_all()
-Admin = User(email='samu77@freemail.hu', role='admin')
+Admin = User(name='secretAdmin', email='samu77@freemail.hu', role='admin')
 db.session.add(Admin)
 db.session.commit()
 
@@ -103,7 +109,7 @@ def callback():
             db.session.add(user)
             db.session.commit()
             login_user(user)
-            return redirect(url_for('index'))
+            return redirect(url_for('home'))
         return 'Could not fetch your information.'
 
 
@@ -124,38 +130,28 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-@app.route('/')
-def index():
-    return 'INDEX'
-
-
-@app.route('/home', methods=['GET'])
-@login_required
+@app.route('/', methods=['GET', 'POST'])
 def home():
+    if request.method == 'GET':
+        google = get_google_auth()
+        auth_url, state = google.authorization_url(Auth.AUTH_URI, access_type='offline')
+        session['oauth_state'] = state
+        return render_template('home.html', auth_url=auth_url)
     return render_template('home.html')
 
 
-@app.route('/success', methods=['GET'])
+@app.route('/admin', methods=['GET', 'POST'])
 @login_required
-def success():
-    return render_template('success.html')
+def admin():
+    pass
 
 
 @app.route('/logout', methods=['GET'])
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('login'))
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'GET':
-        google = get_google_auth()
-        auth_url, state = google.authorization_url(Auth.AUTH_URI, access_type='offline')
-        session['oauth_state'] = state
-        return render_template('login.html', auth_url=auth_url)
-    return render_template('home.html')
+    session.clear()
+    return redirect(url_for('home'))
 
 
 if __name__ == '__main__':
