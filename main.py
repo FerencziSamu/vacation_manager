@@ -1,14 +1,15 @@
-from flask import Flask, redirect, url_for, session, request, render_template, flash
+from flask import Flask, redirect, url_for, session, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from flask_login import LoginManager, current_user, UserMixin, login_user, logout_user
-
+from flask_login import LoginManager, current_user, UserMixin, login_user, logout_user, login_required
 import os
 import json
 
 
 # Postgres and db set up
+
+
 app = Flask(__name__)
 POSTGRES = {
     'user': 'test',
@@ -22,6 +23,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://%(user)s:\
 %(pw)s@%(host)s:%(port)s/%(db)s' % POSTGRES
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 db = SQLAlchemy(app)
 db.init_app(app)
@@ -29,12 +32,14 @@ db.init_app(app)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    role = db.Column(db.String(120), nullable=True, default='Unauthorized')
+    active = db.Column(db.Boolean, default=False)
+    name = db.Column(db.String(100), nullable=True)
+    tokens = db.Column(db.Text)
+    role = db.Column(db.String(120), nullable=True, default='unauthorized')
 
     def __repr__(self):
-        return '<User %r>' % self.username
+        return '<User %r>' % self.name
 
 
 class Request(db.Model):
@@ -43,18 +48,13 @@ class Request(db.Model):
 
 db.drop_all()
 db.create_all()
-Admin = User(username='Samu', email='samu77@freemail.hu', role='admin')
+Admin = User(email='samu77@freemail.hu', role='admin')
 db.session.add(Admin)
 db.session.commit()
 
 
 # Google Auth
 basedir = os.path.abspath(os.path.dirname(__file__))
-
-login_manager = LoginManager(app)
-# login_manager.login_view = "login"
-# login_manager.session_protection = "strong"
-login_manager.init_app(app)
 
 
 @login_manager.user_loader
@@ -81,15 +81,6 @@ class Config:
 
 @app.route('/gCallback')
 def callback():
-    if current_user is not None and current_user.is_authenticated:
-        return redirect(url_for('egy'))
-    if 'error' in request.args:
-        if request.args.get('error') == 'access_denied':
-            return 'Access is denied.'
-        return 'Error encountered.'
-    if 'code' not in request.args and 'state' not in request.args:
-        return redirect(url_for('ketto'))
-    else:
         google = get_google_auth(state=session['oauth_state'])
         try:
             token = google.fetch_token(
@@ -103,31 +94,24 @@ def callback():
         if resp.status_code == 200:
             user_data = resp.json()
             email = user_data['email']
-            username = user_data['name']
-
-            # Execute Query
-            user = User(username=username, email=email)
+            user = User.query.filter_by(email=email).first()
+            if user is None:
+                user = User()
+                user.email = email
+            user.name = user_data['name']
+            user.tokens = json.dumps(token)
             db.session.add(user)
             db.session.commit()
-
-            flash('You are now registered and can log in!')
-            redirect(url_for('success'))
             login_user(user)
-
-            if user is None:
-
-                user = User()
-                db.session.add(user)
-                db.session.commit()
-
-            flash('You are now registered!')
-            return redirect(url_for('success'))
+            return redirect(url_for('index'))
         return 'Could not fetch your information.'
 
 
 def get_google_auth(state=None, token=None):
     if token:
-        return OAuth2Session(Auth.CLIENT_ID, token=token)
+        return OAuth2Session(
+            Auth.CLIENT_ID,
+            token=token)
     if state:
         return OAuth2Session(
             Auth.CLIENT_ID,
@@ -146,19 +130,22 @@ def index():
 
 
 @app.route('/home', methods=['GET'])
+@login_required
 def home():
     return render_template('home.html')
 
 
 @app.route('/success', methods=['GET'])
+@login_required
 def success():
     return render_template('success.html')
 
 
 @app.route('/logout', methods=['GET'])
+@login_required
 def logout():
     logout_user()
-    return render_template('home.html')
+    return redirect(url_for('login'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
