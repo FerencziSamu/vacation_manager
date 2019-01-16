@@ -2,7 +2,7 @@ from flask import Flask, redirect, url_for, session, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 import os
@@ -48,14 +48,20 @@ class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
 
-admin.add_view(ModelView(User, db.session))
-admin.add_view(ModelView(Request, db.session))
+class MyModelView(ModelView):
+    def is_accessible(self):
+        if current_user.is_authenticated and session.get('role') == "admin":
+            return True
+
+
+admin.add_view(MyModelView(User, db.session))
+admin.add_view(MyModelView(Request, db.session))
 
 
 db.drop_all()
 db.create_all()
-Admin = User(name='secretAdmin', email='samu77@freemail.hu', role='admin')
-db.session.add(Admin)
+# Admin = User(name='secretAdmin', email='admin@admin.hu', role='admin')
+# db.session.add(Admin)
 db.session.commit()
 
 
@@ -101,14 +107,22 @@ def callback():
             user_data = resp.json()
             email = user_data['email']
             user = User.query.filter_by(email=email).first()
-            if user is None:
+            first_user = User.query.filter_by(id=1).first()
+            if user is None and first_user is None:
                 user = User()
                 user.email = email
+                user.role = "admin"
+            elif user is None:
+                user = User()
+                user.email = email
+                # if user.email == "samuelferenczi@invenshure.com":
+                #     user.role = "admin"
             user.name = user_data['name']
             user.tokens = json.dumps(token)
             db.session.add(user)
             db.session.commit()
             login_user(user)
+            session['role'] = user.role
             return redirect(url_for('home'))
         return 'Could not fetch your information.'
 
@@ -139,11 +153,11 @@ def home():
         return render_template('home.html', auth_url=auth_url)
     return render_template('home.html')
 
-
-@app.route('/admin', methods=['GET', 'POST'])
-@login_required
-def admin():
-    pass
+#
+# @app.route('/admin', methods=['GET', 'POST'])
+# @login_required
+# def admin():
+#     pass
 
 
 @app.route('/logout', methods=['GET'])
