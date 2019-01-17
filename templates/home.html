@@ -10,21 +10,21 @@
 <div class="jumbotron text-center">
     <h1>Welcome to Holiday Manager</h1>
         {% if current_user.is_anonymous %}
-        <a href="{{auth_url}}" class="btn btn-primary btn-block" style="padding: 15px 0;">Login with Google</a>
+        <a href="{{auth_url}}" class="btn btn-primary" style="padding: 15px 0;">Login with Google</a>
         {% endif %}
         {% if current_user.is_authenticated and session.get('role') == "unauthorized" and session.get('activated') == "no" %}
         Hi {{ current_user.name }}!
         <p class="lead">Congratulations! You have successfully registered to the application, please wait until
         an administrator provides you the necessary accesses! Thank you!</p>
-        <a href="/logout" class="btn btn-primary btn-block" style="padding: 15px 0;">Logout</a>
+        <a href="/logout" class="btn btn-primary" style="padding: 15px 0;">Logout</a>
         {% endif %}
         {% if current_user.is_authenticated and session.get('activated') == "yes" %}
         Hi {{ current_user.name }}!
-        <a href="/add_request" class="btn btn-primary btn-block" style="padding: 15px 0;">Create leave request</a>
-        <a href="/logout" class="btn btn-primary btn-block" style="padding: 15px 0;">Logout</a>
+        <a href="/add_request" class="btn btn-primary" style="padding: 15px 0;">Create leave request</a>
+        <a href="/logout" class="btn btn-primary" style="padding: 15px 0;">Logout</a>
         {% endif %}
-        {% if session.get('role') == "admin" %}
-        <a href="/admin" class="btn btn-primary btn-block" style="padding: 15px 0;">Admin</a>
+        {% if session.get('role') == "admin" and session.get('activated') == "yes" and session is not none %}
+        <a href="/admin" class="btn btn-danger" style="padding: 15px 0;">Admin</a>
         {% endif %}
 </div>
 {% endblock %}

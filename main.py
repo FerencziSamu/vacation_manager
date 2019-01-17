@@ -37,13 +37,14 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     activated = db.Column(db.String(5), default='no')
-    name = db.Column(db.String(100), nullable=True)
+    name = db.Column(db.String(100))
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     requests = db.relationship('Request', backref='owner')
 
     def __repr__(self):
-        return '<User %r>' % self.name
+        return '<%r>' % self.name
 
 
 class Request(db.Model):
@@ -56,6 +57,16 @@ class Request(db.Model):
         return '<Request %r>' % self.id
 
 
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20))
+    days = db.Column(db.Integer)
+    cat_name = db.relationship('User', backref='categories')
+
+    def __repr__(self):
+        return '<%r>' % self.name
+
+
 class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
@@ -64,8 +75,17 @@ class MyModelView(ModelView):
 
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Request, db.session))
-admin.add_link(MenuLink(name='Home Page', url='/', category='Links'))
+admin.add_menu_item(MenuLink(name='Real Home Page', url='/'))
 
+cat1 = Category(name='default', days=25)
+cat2 = Category(name='Young', days=30)
+cat3 = Category(name='Middle age', days=35)
+cat4 = Category(name='Old', days=40)
+
+db.session.add(cat1)
+db.session.add(cat2)
+db.session.add(cat3)
+db.session.add(cat4)
 
 db.drop_all()
 db.create_all()
@@ -166,7 +186,7 @@ def add_request():
     pass
 
 
-@app.route('/logout', methods=['GET'])
+@app.route('/logout')
 @login_required
 def logout():
     logout_user()
