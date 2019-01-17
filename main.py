@@ -5,6 +5,7 @@ from requests.exceptions import HTTPError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
+from flask_admin.base import MenuLink
 import os
 import json
 
@@ -26,7 +27,7 @@ app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-admin = Admin(app, name='vacation_manager', template_mode='bootstrap3')
+admin = Admin(app, name='Vacation Manager', template_mode='bootstrap3')
 
 db = SQLAlchemy(app)
 db.init_app(app)
@@ -35,10 +36,11 @@ db.init_app(app)
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    active = db.Column(db.Boolean, default=False)
+    activated = db.Column(db.String(5), default='no')
     name = db.Column(db.String(100), nullable=True)
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
+    requests = db.relationship('Request', backref='owner')
 
     def __repr__(self):
         return '<User %r>' % self.name
@@ -46,6 +48,12 @@ class User(db.Model, UserMixin):
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    start_date = db.Column(db.DateTime())
+    finish_date = db.Column(db.DateTime())
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    def __repr__(self):
+        return '<Request %r>' % self.id
 
 
 class MyModelView(ModelView):
@@ -56,12 +64,11 @@ class MyModelView(ModelView):
 
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Request, db.session))
+admin.add_link(MenuLink(name='Home Page', url='/', category='Links'))
 
 
 db.drop_all()
 db.create_all()
-# Admin = User(name='secretAdmin', email='admin@admin.hu', role='admin')
-# db.session.add(Admin)
 db.session.commit()
 
 
@@ -112,17 +119,17 @@ def callback():
                 user = User()
                 user.email = email
                 user.role = "admin"
+                user.activated = "yes"
             elif user is None:
                 user = User()
                 user.email = email
-                # if user.email == "samuelferenczi@invenshure.com":
-                #     user.role = "admin"
             user.name = user_data['name']
             user.tokens = json.dumps(token)
             db.session.add(user)
             db.session.commit()
             login_user(user)
             session['role'] = user.role
+            session['activated'] = user.activated
             return redirect(url_for('home'))
         return 'Could not fetch your information.'
 
@@ -153,11 +160,10 @@ def home():
         return render_template('home.html', auth_url=auth_url)
     return render_template('home.html')
 
-#
-# @app.route('/admin', methods=['GET', 'POST'])
-# @login_required
-# def admin():
-#     pass
+
+@app.route('/add_request', methods=['POST'])
+def add_request():
+    pass
 
 
 @app.route('/logout', methods=['GET'])
