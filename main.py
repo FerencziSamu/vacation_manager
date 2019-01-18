@@ -1,4 +1,3 @@
-from models import *
 from flask import Flask, redirect, url_for, session, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
@@ -9,7 +8,6 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
 import os
 import json
-
 
 # Postgres and db set up
 app = Flask(__name__)
@@ -43,7 +41,6 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     requests = db.relationship('Request', backref='owner', lazy=True)
-    category_group = db.Column(db.String(20))
     used_days = db.Column(db.Integer, default=0)
 
     def __repr__(self):
@@ -55,21 +52,30 @@ class Request(db.Model):
     start_date = db.Column(db.Date())
     finish_date = db.Column(db.Date())
     sum = db.Column(db.Integer)
-    status = db.Column(db.String(10), default="pending")
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    status_id = db.Column(db.Integer, db.ForeignKey('status.id'))
 
     def __repr__(self):
-        return '<Request %r>' % self.id
+        return '<%r>' % self.id
 
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20))
     days = db.Column(db.Integer)
-    cat_name = db.relationship('User', backref='categories')
+    cat_name = db.relationship('User', backref='categories', lazy=True)
 
     def __repr__(self):
-        return self.name
+        return '<%r>' % self.name
+
+
+class Status(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20))
+    stat_name = db.relationship('Request', backref='state', lazy=True)
+
+    def __repr__(self):
+        return '<%r>' % self.name
 
 
 class MyModelView(ModelView):
@@ -84,20 +90,24 @@ admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Request, db.session))
 admin.add_menu_item(MenuLink(name='Real Home Page', url='/'))
 
-cat1 = Category(name='default', days=25)
-cat2 = Category(name='Young', days=30)
-cat3 = Category(name='Middle age', days=35)
-cat4 = Category(name='Old', days=40)
+cat1 = Category(name='Young', days=25)
+cat2 = Category(name='Middle age', days=30)
+cat3 = Category(name='Old', days=35)
+
+stat1 = Status(name='pending')
+stat2 = Status(name='approved')
+stat3 = Status(name='declined')
 
 db.session.add(cat1)
 db.session.add(cat2)
 db.session.add(cat3)
-db.session.add(cat4)
+db.session.add(stat1)
+db.session.add(stat2)
+db.session.add(stat3)
 
 db.drop_all()
 db.create_all()
 db.session.commit()
-
 
 # Google Auth
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -127,39 +137,38 @@ class Config:
 
 @app.route('/gCallback')
 def callback():
-        google = get_google_auth(state=session['oauth_state'])
-        try:
-            token = google.fetch_token(
-                Auth.TOKEN_URI,
-                client_secret=Auth.CLIENT_SECRET,
-                authorization_response=request.url)
-        except HTTPError:
-            return 'HTTPError occurred.'
-        google = get_google_auth(token=token)
-        resp = google.get(Auth.USER_INFO)
-        if resp.status_code == 200:
-            user_data = resp.json()
-            email = user_data['email']
-            user = User.query.filter_by(email=email).first()
-            first_user = User.query.filter_by(id=1).first()
-            if user is None and first_user is None:
-                user = User()
-                user.email = email
-                user.role = "admin"
-                user.activated = "yes"
-            elif user is None:
-                user = User()
-                user.email = email
-            user.name = user_data['name']
-            user.tokens = json.dumps(token)
-            user.category_group = cat1.name
-            db.session.add(user)
-            db.session.commit()
-            login_user(user)
-            session['role'] = user.role
-            session['activated'] = user.activated
-            return redirect(url_for('home'))
-        return 'Could not fetch your information.'
+    google = get_google_auth(state=session['oauth_state'])
+    try:
+        token = google.fetch_token(
+            Auth.TOKEN_URI,
+            client_secret=Auth.CLIENT_SECRET,
+            authorization_response=request.url)
+    except HTTPError:
+        return 'HTTPError occurred.'
+    google = get_google_auth(token=token)
+    resp = google.get(Auth.USER_INFO)
+    if resp.status_code == 200:
+        user_data = resp.json()
+        email = user_data['email']
+        user = User.query.filter_by(email=email).first()
+        first_user = User.query.filter_by(id=1).first()
+        if user is None and first_user is None:
+            user = User()
+            user.email = email
+            user.role = "admin"
+            user.activated = "yes"
+        elif user is None:
+            user = User()
+            user.email = email
+        user.name = user_data['name']
+        user.tokens = json.dumps(token)
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        session['role'] = user.role
+        session['activated'] = user.activated
+        return redirect(url_for('home'))
+    return 'Could not fetch your information.'
 
 
 def get_google_auth(state=None, token=None):
