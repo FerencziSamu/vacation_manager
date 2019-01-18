@@ -1,3 +1,4 @@
+from models import *
 from flask import Flask, redirect, url_for, session, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
@@ -36,12 +37,14 @@ db.init_app(app)
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    activated = db.Column(db.String(5), default='no')
     name = db.Column(db.String(100))
+    activated = db.Column(db.String(5), default='no')
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
-    requests = db.relationship('Request', backref='owner')
+    requests = db.relationship('Request', backref='owner', lazy=True)
+    category_group = db.Column(db.String(20))
+    used_days = db.Column(db.Integer, default=0)
 
     def __repr__(self):
         return '<%r>' % self.name
@@ -49,8 +52,10 @@ class User(db.Model, UserMixin):
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    start_date = db.Column(db.DateTime())
-    finish_date = db.Column(db.DateTime())
+    start_date = db.Column(db.Date())
+    finish_date = db.Column(db.Date())
+    sum = db.Column(db.Integer)
+    status = db.Column(db.String(10), default="pending")
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
@@ -64,13 +69,15 @@ class Category(db.Model):
     cat_name = db.relationship('User', backref='categories')
 
     def __repr__(self):
-        return '<%r>' % self.name
+        return self.name
 
 
 class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
+    column_exclude_list = 'tokens'
+    column_display_pk = True
 
 
 admin.add_view(MyModelView(User, db.session))
@@ -145,6 +152,7 @@ def callback():
                 user.email = email
             user.name = user_data['name']
             user.tokens = json.dumps(token)
+            user.category_group = cat1.name
             db.session.add(user)
             db.session.commit()
             login_user(user)
