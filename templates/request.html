@@ -8,9 +8,10 @@
             {{ render_field(form.finish) }}
         </div>
         <div>
-            <select name="status">
+            <select name="status" id="status">
             {% for stat in status %}
                 <option value="{{ stat.name }}">{{ stat.name }}</option>
+                <!--<option {% if stat.name %}selected="selected"{% endif %}>{{ stat.name }}</option>-->
             {% endfor %}
              </select>
         </div>

@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
-from wtforms import Form, StringField, DateField, validators
+from wtforms import Form, StringField, DateField, validators, SelectField
 from _datetime import date
 import os
 import json
@@ -204,6 +204,7 @@ def get_google_auth(state=None, token=None):
 class RequestForm(Form):
     start = DateField('Start day of the leave', format='%Y-%m-%d')
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
+    # req_status = SelectField('status', choices=[])
 
 
 # Add Request
@@ -261,6 +262,8 @@ def modify_request(id):
         finish_date = request.form['finish']
         req.start_date = start_date
         req.finish_date = finish_date
+        # req.rq_status =
+        # print(hello)
         db.session.add(req)
         db.session.commit()
         return redirect(url_for('requests'))
