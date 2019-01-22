@@ -1,0 +1,37 @@
+{% block body %}
+<h1>Requests:
+    <small> Welcome, {{current_user.name}}!</small>
+</h1>
+<a class="btn btn-success" href="/add_request">Add leave Request</a>
+<hr>
+<h2>Requests</h2>
+<table class="table table-striped">
+    <tr>
+        <th>ID</th>
+        <th>Employee</th>
+        <th>Start</th>
+        <th>Finish</th>
+        <th>State</th>
+        <th>Status</th>
+        <th>Test</th>
+        <th>Sum</th>
+    </tr>
+    {% for request in allrequests %}
+    <tr>
+        <td><a href="request/{{request.id}}">{{request.id}}</a></td>
+        <td>{{request.employee}}</td>
+        <td>{{request.start_date}}</td>
+        <td>{{request.finish_date}}</td>
+        <td>{{request.state}}</td>
+        <td>{{request.rq_status}}</td>
+        <td>
+            <select>{% for category in categories %}
+                <option>{{category.name}}</option>
+                    {% endfor %}
+            </select>
+        </td>
+        <td>{{request.sum}}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

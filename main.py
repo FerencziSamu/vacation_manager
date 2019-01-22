@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, session, request, render_template
+from flask import Flask, redirect, url_for, session, request, render_template, flash
 from flask_sqlalchemy import SQLAlchemy
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
@@ -6,6 +6,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
+from wtforms import Form, StringField, DateField, validators
+from _datetime import date
 import os
 import json
 
@@ -54,6 +56,9 @@ class Request(db.Model):
     sum = db.Column(db.Integer)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     status_id = db.Column(db.Integer, db.ForeignKey('status.id'))
+    rq_status = db.Column(db.String(10), default='pending')
+    test = db.Column(db.String(10), default='default')
+    employee = db.Column(db.String(50))
 
     def __repr__(self):
         return '<%r>' % self.id
@@ -89,7 +94,12 @@ class MyModelView(ModelView):
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Request, db.session))
 admin.add_menu_item(MenuLink(name='Real Home Page', url='/'))
+admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 
+
+# Adding request for testing purposes
+req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2)
+cat0 = Category(name='Default', days= 20)
 cat1 = Category(name='Young', days=25)
 cat2 = Category(name='Middle age', days=30)
 cat3 = Category(name='Old', days=35)
@@ -98,6 +108,8 @@ stat1 = Status(name='pending')
 stat2 = Status(name='approved')
 stat3 = Status(name='declined')
 
+db.session.add(req1)
+db.session.add(cat0)
 db.session.add(cat1)
 db.session.add(cat2)
 db.session.add(cat3)
@@ -188,6 +200,35 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
+# Request Form Class
+class RequestForm(Form):
+    start = DateField('Start day of the leave', format='%Y-%m-%d')
+    finish = DateField('Last day of the leave', format='%Y-%m-%d')
+
+
+# Add Request
+@app.route('/add_request', methods=['GET', 'POST'])
+@login_required
+def add_request():
+    form = RequestForm(request.form)
+
+    if request.method == 'POST' and form.validate():
+        start = form.start.data
+        finish = form.finish.data
+        date_1 = date(start.year, start.month, start.day)
+        date_2 = date(finish.year, finish.month, finish.day)
+        sum = (date_2 - date_1).days
+
+        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
+        db.session.add(req)
+        db.session.commit()
+
+        flash('Request created', 'success')
+        return redirect(url_for('requests'))
+
+    return render_template('add_request.html', form=form)
+
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
@@ -198,9 +239,32 @@ def home():
     return render_template('home.html')
 
 
-@app.route('/add_request', methods=['POST'])
-def add_request():
-    pass
+@app.route('/requests')
+@login_required
+def requests():
+    allrequests = Request.query.all()
+    return render_template('requests.html', allrequests=allrequests)
+
+
+@app.route('/request/<string:id>', methods=['GET', 'POST'])
+@login_required
+def modify_request(id):
+    req = Request.query.get(id)
+    categories = Category.query.all()
+    form = RequestForm(request.form)
+    form.start.data = req.start_date
+    form.finish.data = req.finish_date
+    status = Status.query.all()
+
+    if request.method == 'POST' and form.validate():
+        start_date = request.form['start']
+        finish_date = request.form['finish']
+        req.start_date = start_date
+        req.finish_date = finish_date
+        db.session.add(req)
+        db.session.commit()
+        return redirect(url_for('requests'))
+    return render_template('request.html', categories=categories, form=form, status=status)
 
 
 @app.route('/logout')
