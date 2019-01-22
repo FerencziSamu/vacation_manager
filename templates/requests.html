@@ -11,9 +11,7 @@
         <th>Employee</th>
         <th>Start</th>
         <th>Finish</th>
-        <th>State</th>
         <th>Status</th>
-        <th>Test</th>
         <th>Sum</th>
     </tr>
     {% for request in allrequests %}
@@ -22,14 +20,7 @@
         <td>{{request.employee}}</td>
         <td>{{request.start_date}}</td>
         <td>{{request.finish_date}}</td>
-        <td>{{request.state}}</td>
         <td>{{request.rq_status}}</td>
-        <td>
-            <select>{% for category in categories %}
-                <option>{{category.name}}</option>
-                    {% endfor %}
-            </select>
-        </td>
         <td>{{request.sum}}</td>
     </tr>
     {% endfor %}

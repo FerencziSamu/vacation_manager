@@ -56,8 +56,7 @@ class Request(db.Model):
     sum = db.Column(db.Integer)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     status_id = db.Column(db.Integer, db.ForeignKey('status.id'))
-    rq_status = db.Column(db.String(10), default='pending')
-    test = db.Column(db.String(10), default='default')
+    rq_status = db.Column(db.String(10), default='test')
     employee = db.Column(db.String(50))
 
     def __repr__(self):
@@ -104,9 +103,9 @@ cat1 = Category(name='Young', days=25)
 cat2 = Category(name='Middle age', days=30)
 cat3 = Category(name='Old', days=35)
 
-stat1 = Status(name='pending')
-stat2 = Status(name='approved')
-stat3 = Status(name='declined')
+stat1 = Status(name='Pending')
+stat2 = Status(name='Approved')
+stat3 = Status(name='Declined')
 
 db.session.add(req1)
 db.session.add(cat0)
@@ -204,7 +203,7 @@ def get_google_auth(state=None, token=None):
 class RequestForm(Form):
     start = DateField('Start day of the leave', format='%Y-%m-%d')
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
-    # req_status = SelectField('status', choices=[])
+    rq_status = SelectField('status', choices=[])
 
 
 # Add Request
@@ -212,15 +211,18 @@ class RequestForm(Form):
 @login_required
 def add_request():
     form = RequestForm(request.form)
+    form.rq_status.choices = [(Status.id, Status.name) for Status in Status.query.all()]
 
-    if request.method == 'POST' and form.validate():
+    if request.method == 'POST':
+
         start = form.start.data
         finish = form.finish.data
         date_1 = date(start.year, start.month, start.day)
         date_2 = date(finish.year, finish.month, finish.day)
+
         sum = (date_2 - date_1).days
 
-        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
+        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, rq_status='Pending')
         db.session.add(req)
         db.session.commit()
 
@@ -251,23 +253,23 @@ def requests():
 @login_required
 def modify_request(id):
     req = Request.query.get(id)
-    categories = Category.query.all()
     form = RequestForm(request.form)
     form.start.data = req.start_date
     form.finish.data = req.finish_date
+    form.rq_status.data = req.rq_status
     status = Status.query.all()
 
-    if request.method == 'POST' and form.validate():
+    if request.method == 'POST':
         start_date = request.form['start']
         finish_date = request.form['finish']
+        rq_status = request.form['rq_status']
         req.start_date = start_date
         req.finish_date = finish_date
-        # req.rq_status =
-        # print(hello)
+        req.rq_status = rq_status
         db.session.add(req)
         db.session.commit()
         return redirect(url_for('requests'))
-    return render_template('request.html', categories=categories, form=form, status=status)
+    return render_template('request.html', form=form, status=status)
 
 
 @app.route('/logout')
