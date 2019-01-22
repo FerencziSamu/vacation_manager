@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
-from wtforms import Form, DateField, StringField, IntegerField, validators
+from wtforms import Form, DateField
 from _datetime import date
 import os
 import json
@@ -80,13 +80,13 @@ class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
+    form_excluded_columns = 'tokens', 'used_days', 'activated'
     column_exclude_list = 'tokens'
 
 
 admin.add_view(MyModelView(User, db.session))
-admin.add_view(MyModelView(Request, db.session))
 admin.add_view(MyModelView(Category, db.session))
-admin.add_menu_item(MenuLink(name='Real Home Page', url='/'))
+admin.add_menu_item(MenuLink(name='Home Page', url='/'))
 admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 
 
@@ -193,11 +193,6 @@ class RequestForm(Form):
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
 
 
-class CategoryForm(Form):
-    days = IntegerField('Allowed days')
-    name = StringField('Category name', validators.string_types)
-
-
 # Add Request
 @app.route('/add_request', methods=['GET', 'POST'])
 @login_required
@@ -222,25 +217,6 @@ def add_request():
     return render_template('add_request.html', form=form)
 
 
-# @app.route('/add_category', methods=['GET', 'POST'])
-# @login_required
-# def add_category():
-#     form = CategoryForm(request.form)
-#
-#     if request.method == 'POST':
-#
-#         days = form.days.data
-#         name = form.name.data
-#
-#         cat = Category(name=name, days=days)
-#         db.session.add(cat)
-#         db.session.commit()
-#
-#         flash('Category created', 'success')
-#         return redirect(url_for('categories'))
-#     return render_template('add_category.html', form=form)
-
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
@@ -259,16 +235,6 @@ def requests():
         return render_template('requests.html', allrequests=allrequests)
     flash('You are not an administrator!', 'danger')
     return redirect(url_for('home'))
-
-
-# @app.route('/categories')
-# @login_required
-# def categories():
-#     if current_user.is_authenticated and session.get('role') == "admin":
-#         categoriess = Category.query.all()
-#         return render_template('categories.html', categories=categoriess)
-#     flash('You are not an administrator!', 'danger')
-#     return redirect(url_for('home'))
 
 
 # Approve Request
