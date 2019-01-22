@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
-from wtforms import Form, StringField, DateField, validators, SelectField
+from wtforms import Form, DateField, StringField, IntegerField, validators
 from _datetime import date
 import os
 import json
@@ -41,8 +41,6 @@ class User(db.Model, UserMixin):
     activated = db.Column(db.String(5), default='no')
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
-    requests = db.relationship('Request', backref='owner', lazy=True)
     used_days = db.Column(db.Integer, default=0)
 
     def __repr__(self):
@@ -54,9 +52,7 @@ class Request(db.Model):
     start_date = db.Column(db.Date())
     finish_date = db.Column(db.Date())
     sum = db.Column(db.Integer)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status_id = db.Column(db.Integer, db.ForeignKey('status.id'))
-    rq_status = db.Column(db.String(10), default='test')
+    status = db.Column(db.String(10), default='pending')
     employee = db.Column(db.String(50))
 
     def __repr__(self):
@@ -67,7 +63,6 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20))
     days = db.Column(db.Integer)
-    cat_name = db.relationship('User', backref='categories', lazy=True)
 
     def __repr__(self):
         return '<%r>' % self.name
@@ -76,7 +71,6 @@ class Category(db.Model):
 class Status(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20))
-    stat_name = db.relationship('Request', backref='state', lazy=True)
 
     def __repr__(self):
         return '<%r>' % self.name
@@ -87,21 +81,18 @@ class MyModelView(ModelView):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
     column_exclude_list = 'tokens'
-    column_display_pk = True
 
 
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Request, db.session))
+admin.add_view(MyModelView(Category, db.session))
 admin.add_menu_item(MenuLink(name='Real Home Page', url='/'))
 admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 
 
 # Adding request for testing purposes
 req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2)
-cat0 = Category(name='Default', days= 20)
-cat1 = Category(name='Young', days=25)
-cat2 = Category(name='Middle age', days=30)
-cat3 = Category(name='Old', days=35)
+cat0 = Category(name='Default', days=20)
 
 stat1 = Status(name='Pending')
 stat2 = Status(name='Approved')
@@ -109,9 +100,6 @@ stat3 = Status(name='Declined')
 
 db.session.add(req1)
 db.session.add(cat0)
-db.session.add(cat1)
-db.session.add(cat2)
-db.session.add(cat3)
 db.session.add(stat1)
 db.session.add(stat2)
 db.session.add(stat3)
@@ -203,7 +191,11 @@ def get_google_auth(state=None, token=None):
 class RequestForm(Form):
     start = DateField('Start day of the leave', format='%Y-%m-%d')
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
-    rq_status = SelectField('status', choices=[])
+
+
+class CategoryForm(Form):
+    days = IntegerField('Allowed days')
+    name = StringField('Category name', validators.string_types)
 
 
 # Add Request
@@ -211,7 +203,6 @@ class RequestForm(Form):
 @login_required
 def add_request():
     form = RequestForm(request.form)
-    form.rq_status.choices = [(Status.id, Status.name) for Status in Status.query.all()]
 
     if request.method == 'POST':
 
@@ -219,10 +210,9 @@ def add_request():
         finish = form.finish.data
         date_1 = date(start.year, start.month, start.day)
         date_2 = date(finish.year, finish.month, finish.day)
-
         sum = (date_2 - date_1).days
 
-        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, rq_status='Pending')
+        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
         db.session.add(req)
         db.session.commit()
 
@@ -230,6 +220,25 @@ def add_request():
         return redirect(url_for('requests'))
 
     return render_template('add_request.html', form=form)
+
+
+# @app.route('/add_category', methods=['GET', 'POST'])
+# @login_required
+# def add_category():
+#     form = CategoryForm(request.form)
+#
+#     if request.method == 'POST':
+#
+#         days = form.days.data
+#         name = form.name.data
+#
+#         cat = Category(name=name, days=days)
+#         db.session.add(cat)
+#         db.session.commit()
+#
+#         flash('Category created', 'success')
+#         return redirect(url_for('categories'))
+#     return render_template('add_category.html', form=form)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -245,31 +254,47 @@ def home():
 @app.route('/requests')
 @login_required
 def requests():
-    allrequests = Request.query.all()
-    return render_template('requests.html', allrequests=allrequests)
+    if current_user.is_authenticated and session.get('role') == "admin":
+        allrequests = Request.query.all()
+        return render_template('requests.html', allrequests=allrequests)
+    flash('You are not an administrator!', 'danger')
+    return redirect(url_for('home'))
 
 
-@app.route('/request/<string:id>', methods=['GET', 'POST'])
+# @app.route('/categories')
+# @login_required
+# def categories():
+#     if current_user.is_authenticated and session.get('role') == "admin":
+#         categoriess = Category.query.all()
+#         return render_template('categories.html', categories=categoriess)
+#     flash('You are not an administrator!', 'danger')
+#     return redirect(url_for('home'))
+
+
+# Approve Request
+@app.route('/approve_request/<string:id>', methods=['POST'])
 @login_required
-def modify_request(id):
+def approve_request(id):
     req = Request.query.get(id)
-    form = RequestForm(request.form)
-    form.start.data = req.start_date
-    form.finish.data = req.finish_date
-    form.rq_status.data = req.rq_status
-    status = Status.query.all()
+    req.status = "Approved"
+    db.session.add(req)
+    db.session.commit()
 
-    if request.method == 'POST':
-        start_date = request.form['start']
-        finish_date = request.form['finish']
-        rq_status = request.form['rq_status']
-        req.start_date = start_date
-        req.finish_date = finish_date
-        req.rq_status = rq_status
-        db.session.add(req)
-        db.session.commit()
-        return redirect(url_for('requests'))
-    return render_template('request.html', form=form, status=status)
+    flash('Request approved!', 'success')
+    return redirect(url_for('requests'))
+
+
+# Reject Request
+@app.route('/reject_request/<string:id>', methods=['POST'])
+@login_required
+def reject_request(id):
+    req = Request.query.get(id)
+    req.status = "Rejected"
+    db.session.add(req)
+    db.session.commit()
+
+    flash('Request rejected!', 'success')
+    return redirect(url_for('requests'))
 
 
 @app.route('/logout')

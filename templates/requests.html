@@ -1,10 +1,10 @@
+{% extends 'layout.html'%}
 {% block body %}
-<h1>Requests:
-    <small> Welcome, {{current_user.name}}!</small>
+<h1> Requests page
+    <h3> Welcome, {{current_user.name}}!</h3>
 </h1>
 <a class="btn btn-success" href="/add_request">Add leave Request</a>
 <hr>
-<h2>Requests</h2>
 <table class="table table-striped">
     <tr>
         <th>ID</th>
@@ -13,6 +13,8 @@
         <th>Finish</th>
         <th>Status</th>
         <th>Sum</th>
+        <th></th>
+        <th></th>
     </tr>
     {% for request in allrequests %}
     <tr>
@@ -20,9 +22,21 @@
         <td>{{request.employee}}</td>
         <td>{{request.start_date}}</td>
         <td>{{request.finish_date}}</td>
-        <td>{{request.rq_status}}</td>
+        <td>{{request.status}}</td>
         <td>{{request.sum}}</td>
+        <td>
+            <form action="{{url_for('reject_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="REJECT">
+                <input type="submit" value="Reject" class="btn btn-danger pull-right">
+            </form>
+            <form action="{{url_for('approve_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="APPROVE">
+                <input type="submit" value="Approve" class="btn btn-success pull-right">
+            </form>
+        </td>
     </tr>
     {% endfor %}
 </table>
+<a href="/admin" class="btn btn-danger" style="padding: 15px 15px;">Admin</a>
+<a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
 {% endblock %}

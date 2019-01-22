@@ -1,33 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Holiday Manager</title>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    </head>
-<body>
+{% extends 'layout.html'%}
 {% block body %}
 <div class="jumbotron text-center">
     <h1>Welcome to Holiday Manager</h1>
         {% if current_user.is_anonymous %}
-        <a href="{{auth_url}}" class="btn btn-primary" style="padding: 15px 0;">Login with Google</a>
+        <a href="{{auth_url}}" class="btn btn-primary" style="padding: 15px 15px;">Login with Google</a>
         {% endif %}
         {% if current_user.is_authenticated and session.get('role') == "unauthorized" and session.get('activated') == "no" %}
         Hi {{ current_user.name }}!
         <p class="lead">Congratulations! You have successfully registered to the application, please wait until
         an administrator provides you the necessary accesses! Thank you!</p>
-        <a href="/logout" class="btn btn-primary" style="padding: 15px 0;">Logout</a>
+        <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
         {% if current_user.is_authenticated and session.get('activated') == "yes" %}
         Hi {{ current_user.name }}!
-        <a href="/add_request" class="btn btn-primary" style="padding: 15px 0;">Create leave request</a>
-        <a href="/logout" class="btn btn-primary" style="padding: 15px 0;">Logout</a>
+        <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
+        <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
         {% if session.get('role') == "admin" and session.get('activated') == "yes" and session is not none %}
-        <a href="/admin" class="btn btn-danger" style="padding: 15px 0;">Admin</a>
+        <a href="/admin" class="btn btn-danger" style="padding: 15px 15px;">Admin</a>
         {% endif %}
 </div>
 {% endblock %}
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-</body>
-</html>
