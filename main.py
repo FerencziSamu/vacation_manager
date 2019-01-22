@@ -38,7 +38,8 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(100))
-    activated = db.Column(db.String(5), default='no')
+    # activated = db.Column(db.String(5), default='no')
+    active = db.Column(db.Boolean(), default=False)
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
     used_days = db.Column(db.Integer, default=0)
@@ -84,10 +85,10 @@ class MyModelView(ModelView):
     column_exclude_list = 'tokens'
 
 
-admin.add_view(MyModelView(User, db.session))
-admin.add_view(MyModelView(Category, db.session))
 admin.add_menu_item(MenuLink(name='Home Page', url='/'))
 admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
+admin.add_view(MyModelView(User, db.session))
+admin.add_view(MyModelView(Category, db.session))
 
 
 # Adding request for testing purposes
@@ -155,7 +156,7 @@ def callback():
             user = User()
             user.email = email
             user.role = "admin"
-            user.activated = "yes"
+            user.active = True
         elif user is None:
             user = User()
             user.email = email
@@ -164,8 +165,10 @@ def callback():
         db.session.add(user)
         db.session.commit()
         login_user(user)
+        print(user.active)
+        print(user.is_active)
         session['role'] = user.role
-        session['activated'] = user.activated
+        # session['activated'] = user.activated
         return redirect(url_for('home'))
     return 'Could not fetch your information.'
 
@@ -193,13 +196,18 @@ class RequestForm(Form):
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
 
 
+@app.route('/test')
+def test():
+    return render_template('test.html')
+
+
 # Add Request
 @app.route('/add_request', methods=['GET', 'POST'])
 @login_required
 def add_request():
     form = RequestForm(request.form)
 
-    if request.method == 'POST':
+    if request.method == 'POST' and form.validate():
 
         start = form.start.data
         finish = form.finish.data
