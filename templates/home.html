@@ -17,6 +17,7 @@
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
         {% if current_user.role == "admin" and current_user.is_active %}
+        {{ days }}
         <a href="/admin" class="btn btn-danger" style="padding: 15px 15px;">Admin</a>
         <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>

@@ -127,7 +127,7 @@ class Auth:
     AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
     TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
     USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
-    SCOPE = ['profile', 'email']
+    SCOPE = ['profile', 'email', 'https://www.googleapis.com/auth/calendar']
 
 
 class Config:
@@ -167,10 +167,11 @@ def callback():
         db.session.add(user)
         db.session.commit()
         login_user(user)
+        session['role'] = user.role
         print(user.active)
         print(user.is_active)
-        session['role'] = user.role
-        # session['activated'] = user.activated
+        days = Category.query.get(current_user.category_id).days
+        print(days)
         return redirect(url_for('home'))
     return 'Could not fetch your information.'
 
