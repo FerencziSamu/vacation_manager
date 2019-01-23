@@ -38,11 +38,11 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(100))
-    # activated = db.Column(db.String(5), default='no')
     active = db.Column(db.Boolean(), default=False)
     tokens = db.Column(db.Text)
     role = db.Column(db.String(120), nullable=True, default='unauthorized')
     used_days = db.Column(db.Integer, default=0)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
     def __repr__(self):
         return '<%r>' % self.name
@@ -64,9 +64,10 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20))
     days = db.Column(db.Integer)
+    users = db.relationship('User', backref='category', lazy=True)
 
     def __repr__(self):
-        return '<%r>' % self.name
+        return f"('{self.name}', '{self.days}')"
 
 
 class Status(db.Model):
@@ -81,7 +82,7 @@ class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
-    form_excluded_columns = 'tokens', 'used_days', 'activated'
+    form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
 
 
@@ -162,6 +163,7 @@ def callback():
             user.email = email
         user.name = user_data['name']
         user.tokens = json.dumps(token)
+        user.category_id = cat0.id
         db.session.add(user)
         db.session.commit()
         login_user(user)

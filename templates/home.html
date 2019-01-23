@@ -5,22 +5,27 @@
         {% if current_user.is_anonymous %}
         <a href="{{auth_url}}" class="btn btn-primary" style="padding: 15px 15px;">Login with Google</a>
         {% endif %}
-        {% if session.get('role') == "unauthorized" %}
+        {% if current_user.role == "unauthorized" %}
         Hi {{ current_user.name }}!
         <p class="lead">Congratulations! You have successfully registered to the application, please wait until
         an administrator provides you the necessary accesses! Thank you!</p>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
-        {% if session.get('role') == "authorized" and current_user.active %}
+        {% if current_user.role == "authorized" and current_user.active %}
         Hi {{ current_user.name }}!
         <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
-        {% if session.get('role') == "admin" and current_user.is_active %}
+        {% if current_user.role == "admin" and current_user.is_active %}
         <a href="/admin" class="btn btn-danger" style="padding: 15px 15px;">Admin</a>
         <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
+        {% if current_user.role == "authorized" and not current_user.active %}
+        Hi {{ current_user.name }}!
+        Your account is disabled, please contact your system administrator!
+        <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
+        {% endif%}
 </div>
 {% endblock %}
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
