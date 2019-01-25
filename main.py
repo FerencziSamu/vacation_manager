@@ -16,7 +16,6 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-
 # Postgres and db set up
 app = Flask(__name__)
 POSTGRES = {
@@ -88,6 +87,7 @@ class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
+
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
 
@@ -96,7 +96,6 @@ admin.add_menu_item(MenuLink(name='Home Page', url='/'))
 admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Category, db.session))
-
 
 # Adding request for testing purposes
 req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2)
@@ -202,7 +201,7 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-def calendar():
+def calendar(date_1, date_2):
     """Shows basic usage of the Google Calendar API.
     Prints the start and name of the next 10 events on the user's calendar.
     """
@@ -228,23 +227,17 @@ def calendar():
             pickle.dump(creds, token)
 
     gcal = build('calendar', 'v3', credentials=creds)
-
     event = {
-        'summary': 'Holiday',
-        'start': {'date': '2019-01-15'},
-        'end': {'date': '2019-01-18'},
-        'attendees': [
-            {'email': email},
-        ],
+        "start": {"date": str(date_1)},
+        "end": {"date": str(date_2)},
+        "summary": "Holiday",
+        "attendees": [{
+            "email": email
+        }]
     }
 
-    e = gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
-                             sendNotifications=False, body=event).execute()
-
-    print('''*** %r event added:
-        Start: %s
-        End:   %s''' % (e['summary'].encode('utf-8'),
-                        e['start']['date'], e['end']['date']))
+    gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
+                         sendNotifications=False, body=event).execute()
 
 
 # Request Form Class
@@ -265,7 +258,6 @@ def add_request():
     form = RequestForm(request.form)
 
     if request.method == 'POST' and form.validate():
-
         start = form.start.data
         finish = form.finish.data
         date_1 = date(start.year, start.month, start.day)
@@ -275,7 +267,7 @@ def add_request():
         req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
         db.session.add(req)
         db.session.commit()
-        calendar()
+        calendar(date_1, date_2)
         flash('Request created', 'success')
         return redirect(url_for('requests'))
 
