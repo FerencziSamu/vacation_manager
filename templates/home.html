@@ -13,11 +13,13 @@
         {% endif %}
         {% if current_user.role == "authorized" and current_user.active %}
         Hi {{ current_user.name }}!
+        <iframe src="https://calendar.google.com/calendar/b/1/embed?showTitle=0&amp;showPrint=0&amp;showTabs=0&amp;height=600&amp;wkst=2&amp;bgcolor=%23ccffff&amp;src=invenshure.com_bestbp3r6lvncuqqikfl5ghlno%40group.calendar.google.com&amp;color=%238C500B&amp;ctz=Europe%2FBudapest" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
         <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>
         {% endif %}
         {% if current_user.role == "admin" and current_user.is_active %}
         {{ days }}
+        <iframe src="https://calendar.google.com/calendar/b/1/embed?showTitle=0&amp;showPrint=0&amp;showTabs=0&amp;height=600&amp;wkst=2&amp;bgcolor=%23ccffff&amp;src=invenshure.com_bestbp3r6lvncuqqikfl5ghlno%40group.calendar.google.com&amp;color=%238C500B&amp;ctz=Europe%2FBudapest" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
         <a href="/admin" class="btn btn-danger" style="padding: 15px 15px;">Admin</a>
         <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>
         <a href="/logout" class="btn btn-primary" style="padding: 15px 15px;">Logout</a>

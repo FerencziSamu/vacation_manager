@@ -11,7 +11,6 @@ from wtforms import Form, DateField
 from _datetime import date
 import os
 import json
-import datetime
 import pickle
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -120,6 +119,9 @@ db.session.commit()
 # Google Auth
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# Google Calendar API
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+
 
 @login_manager.user_loader
 def get_user(ident):
@@ -135,9 +137,6 @@ class Auth:
     TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
     USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
     SCOPE = ['profile', 'email']
-
-
-SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 
 class Config:
@@ -208,6 +207,8 @@ def calendar():
     Prints the start and name of the next 10 events on the user's calendar.
     """
     creds = None
+    email = current_user.email
+
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -217,7 +218,7 @@ def calendar():
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            get_google_auth()
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)
@@ -226,21 +227,24 @@ def calendar():
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    service = build('calendar', 'v3', credentials=creds)
+    gcal = build('calendar', 'v3', credentials=creds)
 
-    # Call the Calendar API
-    now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-    print('Getting the upcoming 10 events')
-    events_result = service.events().list(calendarId='primary', timeMin=now,
-                                        maxResults=10, singleEvents=True,
-                                        orderBy='startTime').execute()
-    events = events_result.get('items', [])
+    event = {
+        'summary': 'Holiday',
+        'start': {'date': '2019-01-15'},
+        'end': {'date': '2019-01-18'},
+        'attendees': [
+            {'email': email},
+        ],
+    }
 
-    if not events:
-        print('No upcoming events found.')
-    for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start, event['summary'])
+    e = gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
+                             sendNotifications=False, body=event).execute()
+
+    print('''*** %r event added:
+        Start: %s
+        End:   %s''' % (e['summary'].encode('utf-8'),
+                        e['start']['date'], e['end']['date']))
 
 
 # Request Form Class
@@ -249,7 +253,7 @@ class RequestForm(Form):
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
 
 
-@app.route('/test')
+@app.route('/test', methods=['GET', 'POST'])
 def test():
     return render_template('test.html')
 
@@ -271,7 +275,7 @@ def add_request():
         req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
         db.session.add(req)
         db.session.commit()
-
+        calendar()
         flash('Request created', 'success')
         return redirect(url_for('requests'))
 
@@ -280,12 +284,10 @@ def add_request():
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    calendar()
     if request.method == 'GET':
         google = get_google_auth()
         auth_url, state = google.authorization_url(Auth.AUTH_URI, access_type='offline')
         session['oauth_state'] = state
-        calendar()
         return render_template('home.html', auth_url=auth_url)
     return render_template('home.html')
 
