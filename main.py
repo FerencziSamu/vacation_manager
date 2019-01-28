@@ -48,9 +48,9 @@ class User(db.Model, UserMixin):
     name = db.Column(db.String(100))
     active = db.Column(db.Boolean(), default=False)
     tokens = db.Column(db.Text)
-    role = db.Column(db.String(120), nullable=True, default='unauthorized')
     used_days = db.Column(db.Integer, default=0)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=True)
 
     def __repr__(self):
         return '<%r>' % self.name
@@ -87,9 +87,18 @@ class Status(db.Model):
         return '<%r>' % self.name
 
 
+class Role(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(50), unique=True)
+    users = db.relationship('User', backref='user_roles', lazy=True)
+
+    def __repr__(self):
+        return '<%r>' % self.name
+
+
 class MyModelView(ModelView):
     def is_accessible(self):
-        if current_user.is_authenticated and session.get('role') == "admin":
+        if current_user.is_authenticated and session.get('role') == "Admin":
             return True
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
@@ -100,16 +109,25 @@ admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Category, db.session))
 
+role0 = Role(name='Unauthorized')
+role1 = Role(name='Viewer')
+role2 = Role(name='Employee')
+role3 = Role(name='Admin')
 
 stat1 = Status(name='Pending')
 stat2 = Status(name='Approved')
 stat3 = Status(name='Declined')
+
 cat0 = Category(name='Default', days=20)
 
 db.session.add(cat0)
 db.session.add(stat1)
 db.session.add(stat2)
 db.session.add(stat3)
+db.session.add(role0)
+db.session.add(role1)
+db.session.add(role2)
+db.session.add(role3)
 
 db.drop_all()
 db.create_all()
@@ -164,20 +182,21 @@ def callback():
         if user is None and first_user is None:
             user = User()
             user.email = email
-            user.role = "admin"
+            user.role_id = role3.id
             user.active = True
         elif user is None:
             user = User()
             user.email = email
+            user.role_id = role0.id
         user.name = user_data['name']
         user.tokens = json.dumps(token)
         user.category_id = cat0.id
         db.session.add(user)
         db.session.commit()
         login_user(user)
-        session['role'] = user.role
-        print(user.active)
-        print(user.is_active)
+        session['role'] = Role.query.get(current_user.role_id).name
+        print(session['role'])
+        print(current_user.role_id)
         days = Category.query.get(current_user.category_id).days
         print(days)
         return redirect(url_for('home'))
@@ -228,7 +247,6 @@ def create_event(date_1, date_2, event_id):
             "email": email
         }]
     }
-
     gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
                          sendNotifications=False, body=event).execute()
 
@@ -268,23 +286,26 @@ def test():
 @app.route('/add_request', methods=['GET', 'POST'])
 @login_required
 def add_request():
-    form = RequestForm(request.form)
+    if current_user.role_id == 4 or current_user.role_id == 3:
+        form = RequestForm(request.form)
 
-    if request.method == 'POST' and form.validate():
-        start = form.start.data
-        finish = form.finish.data
-        date_1 = date(start.year, start.month, start.day)
-        date_2 = date(finish.year, finish.month, finish.day)
-        sum = (date_2 - date_1).days
+        if request.method == 'POST' and form.validate():
+            start = form.start.data
+            finish = form.finish.data
+            date_1 = date(start.year, start.month, start.day)
+            date_2 = date(finish.year, finish.month, finish.day)
+            sum = (date_2 - date_1).days
 
-        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
-        db.session.add(req)
-        db.session.commit()
+            req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
+            db.session.add(req)
+            db.session.commit()
 
-        flash('Request created', 'success')
-        return redirect(url_for('requests'))
+            flash('Request created', 'success')
+            return redirect(url_for('requests'))
 
-    return render_template('add_request.html', form=form)
+        return render_template('add_request.html', form=form)
+    flash('You are not authorized!', 'danger')
+    return redirect(url_for('home'))
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -300,7 +321,7 @@ def home():
 @app.route('/requests')
 @login_required
 def requests():
-    if current_user.is_authenticated and session.get('role') == "admin":
+    if current_user.is_authenticated and session.get('role') == "Admin":
         allrequests = Request.query.all()
         return render_template('requests.html', allrequests=allrequests)
     flash('You are not an administrator!', 'danger')
@@ -311,11 +332,19 @@ def requests():
 @app.route('/approve_request/<string:id>', methods=['POST'])
 @login_required
 def approve_request(id):
-    req = Request.query.get(id)
-    event_id = int(time.time())
-    date_1 = req.start_date
-    date_2 = req.finish_date
-    if req.status == stat3.name:
+    if current_user.is_authenticated and session.get('role') == "Admin":
+        req = Request.query.get(id)
+        event_id = int(time.time())
+        date_1 = req.start_date
+        date_2 = req.finish_date
+        if req.status == stat3.name:
+            req.status = stat2.name
+            req.event_id = event_id
+            db.session.add(req)
+            db.session.commit()
+            create_event(date_1, date_2, event_id)
+            flash('Request approved!', 'success')
+            return redirect(url_for('requests'))
         req.status = stat2.name
         req.event_id = event_id
         db.session.add(req)
@@ -323,33 +352,31 @@ def approve_request(id):
         create_event(date_1, date_2, event_id)
         flash('Request approved!', 'success')
         return redirect(url_for('requests'))
-    req.status = stat2.name
-    req.event_id = event_id
-    db.session.add(req)
-    db.session.commit()
-    create_event(date_1, date_2, event_id)
-    flash('Request approved!', 'success')
-    return redirect(url_for('requests'))
+    flash('You are not an administrator!', 'danger')
+    return redirect(url_for('home'))
 
 
 # Reject Request
 @app.route('/reject_request/<string:id>', methods=['POST'])
 @login_required
 def reject_request(id):
-    req = Request.query.get(id)
-    event_id = req.event_id
-    if req.status == stat1.name:
+    if current_user.is_authenticated and session.get('role') == "Admin":
+        req = Request.query.get(id)
+        event_id = req.event_id
+        if req.status == stat1.name:
+            req.status = stat3.name
+            db.session.add(req)
+            db.session.commit()
+            flash('Request rejected!', 'success')
+            return redirect(url_for('requests'))
         req.status = stat3.name
         db.session.add(req)
         db.session.commit()
+        delete_event(event_id)
         flash('Request rejected!', 'success')
         return redirect(url_for('requests'))
-    req.status = stat3.name
-    db.session.add(req)
-    db.session.commit()
-    delete_event(event_id)
-    flash('Request rejected!', 'success')
-    return redirect(url_for('requests'))
+    flash('You are not an administrator!', 'danger')
+    return redirect(url_for('home'))
 
 
 @app.route('/logout')
