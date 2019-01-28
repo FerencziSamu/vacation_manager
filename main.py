@@ -338,6 +338,12 @@ def approve_request(id):
 def reject_request(id):
     req = Request.query.get(id)
     event_id = req.event_id
+    if req.status == stat1.name:
+        req.status = stat3.name
+        db.session.add(req)
+        db.session.commit()
+        flash('Request rejected!', 'success')
+        return redirect(url_for('requests'))
     req.status = stat3.name
     db.session.add(req)
     db.session.commit()
