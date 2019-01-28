@@ -4,6 +4,9 @@
     <h1>Welcome to Holiday Manager</h1>
         {% if current_user.is_anonymous %}
         <a href="{{auth_url}}" class="btn btn-primary" style="padding: 15px 15px;">Login with Google</a>
+        {% elif not current_user.active %}
+        Sorry, your account is not activated. Please contact your administrator!
+        <div><a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a></div>
         {% endif %}
         {% if session.get('role') == "Unauthorized" %}
         Hi {{ current_user.name }}!
@@ -12,9 +15,9 @@
         <a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a>
         {% endif %}
         {% if session.get('role') == "Viewer" and current_user.active %}
-        Hi {{ current_user.name }}!
+        <div>Hi {{ current_user.name }}!</div>
         <iframe src="https://calendar.google.com/calendar/b/1/embed?showTitle=0&amp;showPrint=0&amp;showTabs=0&amp;height=600&amp;wkst=2&amp;bgcolor=%23ccffff&amp;src=invenshure.com_bestbp3r6lvncuqqikfl5ghlno%40group.calendar.google.com&amp;color=%238C500B&amp;ctz=Europe%2FBudapest" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
-        <a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a>
+        <div><a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a></div>
         {% endif %}
         {% if session.get('role') == "Employee" and current_user.active %}
         Hi {{ current_user.name }}!
@@ -32,11 +35,6 @@
             <a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a>
         </div>
         {% endif %}
-        {% if current_user.role == "authorized" and not current_user.active %}
-        Hi {{ current_user.name }}!
-        Your account is disabled, please contact your system administrator!
-        <a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a>
-        {% endif%}
 </div>
 {% endblock %}
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
