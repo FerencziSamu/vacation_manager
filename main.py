@@ -195,10 +195,6 @@ def callback():
         db.session.commit()
         login_user(user)
         session['role'] = Role.query.get(current_user.role_id).name
-        print(session['role'])
-        print(current_user.role_id)
-        days = Category.query.get(current_user.category_id).days
-        print(days)
         return redirect(url_for('home'))
     return 'Could not fetch your information.'
 
@@ -282,34 +278,6 @@ def test():
     return render_template('test.html')
 
 
-# Add Request
-@app.route('/add_request', methods=['GET', 'POST'])
-@login_required
-def add_request():
-    if current_user.role_id == 4 or current_user.role_id == 3:
-        form = RequestForm(request.form)
-
-        if request.method == 'POST' and form.validate():
-            start = form.start.data
-            finish = form.finish.data
-            date_1 = date(start.year, start.month, start.day)
-            date_2 = date(finish.year, finish.month, finish.day)
-            sum = (date_2 - date_1).days
-
-            req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
-            db.session.add(req)
-            db.session.commit()
-
-            flash('Request created', 'success')
-            if current_user.role_id == 3:
-                return redirect(url_for('home'))
-            return redirect(url_for('requests'))
-
-        return render_template('add_request.html', form=form)
-    flash('You are not authorized!', 'danger')
-    return redirect(url_for('home'))
-
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
@@ -330,6 +298,35 @@ def requests():
     return redirect(url_for('home'))
 
 
+# Add Request
+@app.route('/add_request', methods=['GET', 'POST'])
+@login_required
+def add_request():
+    days = Category.query.get(current_user.category_id).days - current_user.used_days
+    if current_user.role_id == 4 or current_user.role_id == 3:
+        form = RequestForm(request.form)
+
+        if request.method == 'POST' and form.validate():
+            start = form.start.data
+            finish = form.finish.data
+            date_1 = date(start.year, start.month, start.day)
+            date_2 = date(finish.year, finish.month, finish.day)
+            sum = (date_2 - date_1).days
+            if days > sum:
+                req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
+                db.session.add(req)
+                db.session.commit()
+
+                flash('Request created', 'success')
+                if current_user.role_id == 3:
+                    return redirect(url_for('home'))
+                return redirect(url_for('requests'))
+            flash('You dont have enough days remaining!', 'danger')
+        return render_template('add_request.html', form=form, days=days)
+    flash('You are not authorized!', 'danger')
+    return redirect(url_for('home'))
+
+
 # Approve Request
 @app.route('/approve_request/<string:id>', methods=['POST'])
 @login_required
@@ -342,6 +339,7 @@ def approve_request(id):
         if req.status == stat3.name:
             req.status = stat2.name
             req.event_id = event_id
+            current_user.used_days = current_user.used_days + req.sum
             db.session.add(req)
             db.session.commit()
             create_event(date_1, date_2, event_id)
@@ -349,6 +347,7 @@ def approve_request(id):
             return redirect(url_for('requests'))
         req.status = stat2.name
         req.event_id = event_id
+        current_user.used_days = current_user.used_days + req.sum
         db.session.add(req)
         db.session.commit()
         create_event(date_1, date_2, event_id)
@@ -372,6 +371,7 @@ def reject_request(id):
             flash('Request rejected!', 'success')
             return redirect(url_for('requests'))
         req.status = stat3.name
+        current_user.used_days = current_user.used_days - req.sum
         db.session.add(req)
         db.session.commit()
         delete_event(event_id)
