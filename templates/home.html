@@ -8,7 +8,7 @@
         Sorry, your account is not activated. Please contact your administrator!
         <div><a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a></div>
         {% endif %}
-        {% if session.get('role') == "Unauthorized" %}
+        {% if session.get('role') == "Unauthorized" and current_user.active %}
         Hi {{ current_user.name }}!
         <p class="lead">Congratulations! You have successfully registered to the application, please wait until
         an administrator provides you the necessary accesses! Thank you!</p>

@@ -98,7 +98,7 @@ class Role(db.Model):
 
 class MyModelView(ModelView):
     def is_accessible(self):
-        if current_user.is_authenticated and session.get('role') == "Admin":
+        if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
             return True
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
@@ -301,6 +301,8 @@ def add_request():
             db.session.commit()
 
             flash('Request created', 'success')
+            if current_user.role_id == 3:
+                return redirect(url_for('home'))
             return redirect(url_for('requests'))
 
         return render_template('add_request.html', form=form)
