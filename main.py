@@ -58,7 +58,7 @@ class Request(db.Model):
     start_date = db.Column(db.Date())
     finish_date = db.Column(db.Date())
     sum = db.Column(db.Integer)
-    status = db.Column(db.String(10), default='pending')
+    status = db.Column(db.String(10))
     employee = db.Column(db.String(50))
 
     def __repr__(self):
@@ -87,7 +87,6 @@ class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "admin":
             return True
-
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
 
@@ -97,13 +96,15 @@ admin.add_menu_item(MenuLink(name='Requests', url='/requests'))
 admin.add_view(MyModelView(User, db.session))
 admin.add_view(MyModelView(Category, db.session))
 
-# Adding request for testing purposes
-req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2)
-cat0 = Category(name='Default', days=20)
 
 stat1 = Status(name='Pending')
 stat2 = Status(name='Approved')
 stat3 = Status(name='Declined')
+cat0 = Category(name='Default', days=20)
+
+# Adding request for testing purposes
+req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2, status=stat1.name)
+
 
 db.session.add(req1)
 db.session.add(cat0)
@@ -201,7 +202,7 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-def calendar(date_1, date_2):
+def calendar(date_1, date_2, id):
     """Shows basic usage of the Google Calendar API.
     Prints the start and name of the next 10 events on the user's calendar.
     """
@@ -231,6 +232,7 @@ def calendar(date_1, date_2):
         "start": {"date": str(date_1)},
         "end": {"date": str(date_2)},
         "summary": "Holiday",
+        "id": "request" + id,
         "attendees": [{
             "email": email
         }]
@@ -264,10 +266,10 @@ def add_request():
         date_2 = date(finish.year, finish.month, finish.day)
         sum = (date_2 - date_1).days
 
-        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name)
+        req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
         db.session.add(req)
         db.session.commit()
-        calendar(date_1, date_2)
+
         flash('Request created', 'success')
         return redirect(url_for('requests'))
 
@@ -299,10 +301,12 @@ def requests():
 @login_required
 def approve_request(id):
     req = Request.query.get(id)
-    req.status = "Approved"
+    req.status = stat2.name
+    date_1 = req.start_date
+    date_2 = req.finish_date
     db.session.add(req)
     db.session.commit()
-
+    calendar(date_1, date_2, id)
     flash('Request approved!', 'success')
     return redirect(url_for('requests'))
 
@@ -312,10 +316,9 @@ def approve_request(id):
 @login_required
 def reject_request(id):
     req = Request.query.get(id)
-    req.status = "Rejected"
+    req.status = stat3.name
     db.session.add(req)
     db.session.commit()
-
     flash('Request rejected!', 'success')
     return redirect(url_for('requests'))
 
@@ -330,4 +333,4 @@ def logout():
 
 if __name__ == '__main__':
     app.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
-    app.run(host='127.0.0.1', debug=True, port=5000, ssl_context='adhoc')
+app.run(host='127.0.0.1', debug=True, port=5000, ssl_context='adhoc')
