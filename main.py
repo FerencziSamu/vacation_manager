@@ -1,20 +1,23 @@
 from __future__ import print_function
+
 from flask import Flask, redirect, url_for, session, request, render_template, flash
 from flask_sqlalchemy import SQLAlchemy
-from requests_oauthlib import OAuth2Session
-from requests.exceptions import HTTPError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
+from requests_oauthlib import OAuth2Session
+from requests.exceptions import HTTPError
 from wtforms import Form, DateField
 from _datetime import date
-import os
-import json
-import pickle
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+import os
+import json
+import pickle
+import time
+
 
 # Postgres and db set up
 app = Flask(__name__)
@@ -60,6 +63,7 @@ class Request(db.Model):
     sum = db.Column(db.Integer)
     status = db.Column(db.String(10))
     employee = db.Column(db.String(50))
+    event_id = db.Column(db.String(30))
 
     def __repr__(self):
         return '<%r>' % self.id
@@ -102,11 +106,6 @@ stat2 = Status(name='Approved')
 stat3 = Status(name='Declined')
 cat0 = Category(name='Default', days=20)
 
-# Adding request for testing purposes
-req1 = Request(start_date='2019.01.20', finish_date='2019.01.22', sum=2, status=stat1.name)
-
-
-db.session.add(req1)
 db.session.add(cat0)
 db.session.add(stat1)
 db.session.add(stat2)
@@ -202,20 +201,13 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-def calendar(date_1, date_2, id):
-    """Shows basic usage of the Google Calendar API.
-    Prints the start and name of the next 10 events on the user's calendar.
-    """
+def create_event(date_1, date_2, event_id):
     creds = None
     email = current_user.email
 
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             get_google_auth()
@@ -223,7 +215,6 @@ def calendar(date_1, date_2, id):
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)
             creds = flow.run_local_server()
-        # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
@@ -232,7 +223,7 @@ def calendar(date_1, date_2, id):
         "start": {"date": str(date_1)},
         "end": {"date": str(date_2)},
         "summary": "Holiday",
-        "id": "request" + id,
+        "id": event_id,
         "attendees": [{
             "email": email
         }]
@@ -240,6 +231,26 @@ def calendar(date_1, date_2, id):
 
     gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
                          sendNotifications=False, body=event).execute()
+
+
+def delete_event(event_id):
+    creds = None
+
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            get_google_auth()
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server()
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+    gcal = build('calendar', 'v3', credentials=creds)
+    gcal.events().delete(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
+                            eventId=event_id).execute()
 
 
 # Request Form Class
@@ -301,12 +312,22 @@ def requests():
 @login_required
 def approve_request(id):
     req = Request.query.get(id)
-    req.status = stat2.name
+    event_id = int(time.time())
     date_1 = req.start_date
     date_2 = req.finish_date
+    if req.status == stat3.name:
+        req.status = stat2.name
+        req.event_id = event_id
+        db.session.add(req)
+        db.session.commit()
+        create_event(date_1, date_2, event_id)
+        flash('Request approved!', 'success')
+        return redirect(url_for('requests'))
+    req.status = stat2.name
+    req.event_id = event_id
     db.session.add(req)
     db.session.commit()
-    calendar(date_1, date_2, id)
+    create_event(date_1, date_2, event_id)
     flash('Request approved!', 'success')
     return redirect(url_for('requests'))
 
@@ -316,9 +337,11 @@ def approve_request(id):
 @login_required
 def reject_request(id):
     req = Request.query.get(id)
+    event_id = req.event_id
     req.status = stat3.name
     db.session.add(req)
     db.session.commit()
+    delete_event(event_id)
     flash('Request rejected!', 'success')
     return redirect(url_for('requests'))
 
