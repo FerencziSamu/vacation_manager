@@ -5,14 +5,14 @@
 </h1>
 <a class="btn btn-success" href="/add_request">Add leave Request</a>
 <hr>
-<table class="table table-striped">
+<table class="table table-striped text-center">
     <tr>
-        <th>ID</th>
-        <th>Employee</th>
-        <th>Start</th>
-        <th>Finish</th>
-        <th>Status</th>
-        <th>Sum</th>
+        <th class="text-center">ID</th>
+        <th class="text-center">Employee</th>
+        <th class="text-center">Start</th>
+        <th class="text-center">Finish</th>
+        <th class="text-center">Status</th>
+        <th class="text-center">Sum</th>
         <th></th>
         <th></th>
     </tr>
@@ -24,7 +24,7 @@
         <td>{{request.finish_date}}</td>
         {% if request.status == "Declined" %}<td bgcolor=#ff6c32>{{request.status}}</td>
         {% elif request.status == "Approved" %}<td bgcolor=#86d644>{{request.status}}</td>
-        {% else %}<td bgcolor="yellow">{{request.status}}</td>
+        {% else %}<td bgcolor=#f9e868>{{request.status}}</td>
         {% endif %}
         <td>{{request.sum}}</td>
         <td>

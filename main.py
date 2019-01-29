@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from flask import Flask, redirect, url_for, session, request, render_template, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -46,7 +44,7 @@ db.init_app(app)
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    name = db.Column(db.String(100))
+    name = db.Column(db.String(100), nullable=False)
     active = db.Column(db.Boolean(), default=False)
     tokens = db.Column(db.Text)
     used_days = db.Column(db.Integer, default=0)
@@ -73,8 +71,8 @@ class Request(db.Model):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20))
-    days = db.Column(db.Integer)
+    name = db.Column(db.String(20), nullable=False)
+    days = db.Column(db.Integer, nullable=False)
     users = db.relationship('User', backref='category', lazy=True)
 
     def __repr__(self):
@@ -192,7 +190,7 @@ def callback():
             user.role_id = role0.id
         user.name = user_data['name']
         user.tokens = json.dumps(token)
-        user.category_id = cat0.id
+        user.category_id = cat0.id  # default category for every user
         db.session.add(user)
         db.session.commit()
         login_user(user)
@@ -280,11 +278,6 @@ class RequestForm(Form):
     notification = BooleanField('I would like to get notifications regarding my request.')
 
 
-@app.route('/test', methods=['GET', 'POST'])
-def test():
-    return render_template('test.html')
-
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
@@ -309,32 +302,34 @@ def requests():
 @app.route('/add_request', methods=['GET', 'POST'])
 @login_required
 def add_request():
-    days = Category.query.get(current_user.category_id).days - current_user.used_days
-    if current_user.role_id == 4 or current_user.role_id == 3:
-        form = RequestForm(request.form)
+    if current_user.active:
+        if current_user.role_id == 4 or current_user.role_id == 3:
+            form = RequestForm(request.form)
+            days = Category.query.get(current_user.category_id).days - current_user.used_days
+            if request.method == 'POST' and form.validate():
+                start = form.start.data
+                finish = form.finish.data
+                notification = form.notification.data
+                date_1 = date(start.year, start.month, start.day)
+                date_2 = date(finish.year, finish.month, finish.day)
+                sum = (date_2 - date_1).days
 
-        if request.method == 'POST' and form.validate():
-            start = form.start.data
-            finish = form.finish.data
-            notification = form.notification.data
-            date_1 = date(start.year, start.month, start.day)
-            date_2 = date(finish.year, finish.month, finish.day)
-            sum = (date_2 - date_1).days
+                if days > sum > 0:
+                    req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name,
+                                  status=stat1.name, notification=notification)
+                    db.session.add(req)
+                    db.session.commit()
 
-            if days > sum > 0:
-                req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name,
-                              status=stat1.name, notification=notification)
-                db.session.add(req)
-                db.session.commit()
-
-                flash('Request created', 'success')
-                if current_user.role_id == 3:
-                    return redirect(url_for('home'))
-                return redirect(url_for('requests'))
-            flash('You dont have enough days remaining or the selected amount of days is less then 1!'
-                  ' Please check again!', 'danger')
-        return render_template('add_request.html', form=form, days=days)
-    flash('You are not authorized!', 'danger')
+                    flash('Request created', 'success')
+                    if current_user.role_id == 3:
+                        return redirect(url_for('home'))
+                    return redirect(url_for('requests'))
+                flash('You dont have enough days remaining or the selected amount of days is less then 1!'
+                      ' Please check again!', 'danger')
+            return render_template('add_request.html', form=form, days=days)
+        flash('You are not authorized!', 'danger')
+        return redirect(url_for('home'))
+    flash('Sorry, your account is disabled!', 'danger')
     return redirect(url_for('home'))
 
 
@@ -342,7 +337,7 @@ def add_request():
 @app.route('/approve_request/<string:id>', methods=['POST'])
 @login_required
 def approve_request(id):
-    if current_user.is_authenticated and session.get('role') == "Admin":
+    if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
         req = Request.query.get(id)
         event_id = int(time.time())
         date_1 = req.start_date
@@ -376,7 +371,7 @@ def approve_request(id):
 @app.route('/reject_request/<string:id>', methods=['POST'])
 @login_required
 def reject_request(id):
-    if current_user.is_authenticated and session.get('role') == "Admin":
+    if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
         req = Request.query.get(id)
         event_id = req.event_id
         try:
@@ -387,7 +382,7 @@ def reject_request(id):
                 flash('Request rejected!', 'success')
                 return redirect(url_for('requests'))
             elif req.status == stat3.name:
-                flash('Request already rejected!', 'danger')
+                flash('Request is rejected already!', 'danger')
                 return redirect(url_for('requests'))
             elif event_id is not None:
                 req.status = stat3.name
