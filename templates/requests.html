@@ -22,7 +22,10 @@
         <td>{{request.employee}}</td>
         <td>{{request.start_date}}</td>
         <td>{{request.finish_date}}</td>
-        <td>{{request.status}}</td>
+        {% if request.status == "Declined" %}<td bgcolor=#ff6c32>{{request.status}}</td>
+        {% elif request.status == "Approved" %}<td bgcolor=#86d644>{{request.status}}</td>
+        {% else %}<td bgcolor="yellow">{{request.status}}</td>
+        {% endif %}
         <td>{{request.sum}}</td>
         <td>
             <form action="{{url_for('reject_request', id=request.id)}}" method="post">

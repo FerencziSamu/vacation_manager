@@ -267,6 +267,7 @@ def delete_event(event_id):
             creds = flow.run_local_server()
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
+
     gcal = build('calendar', 'v3', credentials=creds)
     gcal.events().delete(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
                          eventId=event_id).execute()
