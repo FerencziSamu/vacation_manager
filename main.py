@@ -312,7 +312,7 @@ def add_request():
             date_1 = date(start.year, start.month, start.day)
             date_2 = date(finish.year, finish.month, finish.day)
             sum = (date_2 - date_1).days
-            if days > sum:
+            if days > sum > 0:
                 req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
                 db.session.add(req)
                 db.session.commit()
@@ -321,7 +321,7 @@ def add_request():
                 if current_user.role_id == 3:
                     return redirect(url_for('home'))
                 return redirect(url_for('requests'))
-            flash('You dont have enough days remaining!', 'danger')
+            flash('You dont have enough days remaining or the select amount of days less then 1! Please check again!', 'danger')
         return render_template('add_request.html', form=form, days=days)
     flash('You are not authorized!', 'danger')
     return redirect(url_for('home'))
