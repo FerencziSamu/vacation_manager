@@ -11,6 +11,7 @@ from requests.exceptions import HTTPError
 from wtforms import Form, DateField, BooleanField
 from _datetime import date
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import os
@@ -267,7 +268,6 @@ def delete_event(event_id):
             creds = flow.run_local_server()
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-
     gcal = build('calendar', 'v3', credentials=creds)
     gcal.events().delete(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
                          eventId=event_id).execute()
@@ -331,8 +331,8 @@ def add_request():
                 if current_user.role_id == 3:
                     return redirect(url_for('home'))
                 return redirect(url_for('requests'))
-            flash('You dont have enough days remaining or the select amount of days less then 1! Please check again!',
-                  'danger')
+            flash('You dont have enough days remaining or the selected amount of days is less then 1!'
+                  ' Please check again!', 'danger')
         return render_template('add_request.html', form=form, days=days)
     flash('You are not authorized!', 'danger')
     return redirect(url_for('home'))
@@ -357,6 +357,9 @@ def approve_request(id):
             create_event(date_1, date_2, event_id, notification)
             flash('Request approved!', 'success')
             return redirect(url_for('requests'))
+        elif req.status == stat2.name:
+            flash('Request is already approved!', 'danger')
+            return redirect(url_for('requests'))
         req.status = stat2.name
         req.event_id = event_id
         current_user.used_days = current_user.used_days + req.sum
@@ -376,19 +379,27 @@ def reject_request(id):
     if current_user.is_authenticated and session.get('role') == "Admin":
         req = Request.query.get(id)
         event_id = req.event_id
-        if req.status == stat1.name:
-            req.status = stat3.name
-            db.session.add(req)
-            db.session.commit()
-            flash('Request rejected!', 'success')
+        try:
+            if req.status == stat1.name:
+                req.status = stat3.name
+                db.session.add(req)
+                db.session.commit()
+                flash('Request rejected!', 'success')
+                return redirect(url_for('requests'))
+            elif req.status == stat3.name:
+                flash('Request already rejected!', 'danger')
+                return redirect(url_for('requests'))
+            elif event_id is not None:
+                req.status = stat3.name
+                current_user.used_days = current_user.used_days - req.sum
+                db.session.add(req)
+                db.session.commit()
+                delete_event(event_id)
+                flash('Request rejected!', 'success')
+                return redirect(url_for('requests'))
+        except HttpError:
+            flash('The event does not exist!', 'danger')
             return redirect(url_for('requests'))
-        req.status = stat3.name
-        current_user.used_days = current_user.used_days - req.sum
-        db.session.add(req)
-        db.session.commit()
-        delete_event(event_id)
-        flash('Request rejected!', 'success')
-        return redirect(url_for('requests'))
     flash('You are not an administrator!', 'danger')
     return redirect(url_for('home'))
 
