@@ -8,7 +8,7 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from wtforms import Form, DateField
+from wtforms import Form, DateField, BooleanField
 from _datetime import date
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -64,6 +64,7 @@ class Request(db.Model):
     status = db.Column(db.String(10))
     employee = db.Column(db.String(50))
     event_id = db.Column(db.String(30))
+    notification = db.Column(db.Boolean())
 
     def __repr__(self):
         return '<%r>' % self.id
@@ -216,7 +217,7 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-def create_event(date_1, date_2, event_id):
+def create_event(date_1, date_2, event_id, notification):
     creds = None
     email = current_user.email
 
@@ -237,14 +238,18 @@ def create_event(date_1, date_2, event_id):
     event = {
         "start": {"date": str(date_1)},
         "end": {"date": str(date_2)},
-        "summary": "Holiday",
+        "summary": "Holiday for " + current_user.name,
         "id": event_id,
         "attendees": [{
             "email": email
         }]
     }
-    gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
-                         sendNotifications=False, body=event).execute()
+    if notification:
+        gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
+                             sendNotifications=True, body=event).execute()
+    else:
+        gcal.events().insert(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
+                             sendNotifications=False, body=event).execute()
 
 
 def delete_event(event_id):
@@ -264,13 +269,14 @@ def delete_event(event_id):
             pickle.dump(creds, token)
     gcal = build('calendar', 'v3', credentials=creds)
     gcal.events().delete(calendarId='invenshure.com_bestbp3r6lvncuqqikfl5ghlno@group.calendar.google.com',
-                            eventId=event_id).execute()
+                         eventId=event_id).execute()
 
 
 # Request Form Class
 class RequestForm(Form):
     start = DateField('Start day of the leave', format='%Y-%m-%d')
     finish = DateField('Last day of the leave', format='%Y-%m-%d')
+    notification = BooleanField('I would like to get notifications regarding my request.')
 
 
 @app.route('/test', methods=['GET', 'POST'])
@@ -309,11 +315,14 @@ def add_request():
         if request.method == 'POST' and form.validate():
             start = form.start.data
             finish = form.finish.data
+            notification = form.notification.data
             date_1 = date(start.year, start.month, start.day)
             date_2 = date(finish.year, finish.month, finish.day)
             sum = (date_2 - date_1).days
+
             if days > sum > 0:
-                req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name, status=stat1.name)
+                req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name,
+                              status=stat1.name, notification=notification)
                 db.session.add(req)
                 db.session.commit()
 
@@ -321,7 +330,8 @@ def add_request():
                 if current_user.role_id == 3:
                     return redirect(url_for('home'))
                 return redirect(url_for('requests'))
-            flash('You dont have enough days remaining or the select amount of days less then 1! Please check again!', 'danger')
+            flash('You dont have enough days remaining or the select amount of days less then 1! Please check again!',
+                  'danger')
         return render_template('add_request.html', form=form, days=days)
     flash('You are not authorized!', 'danger')
     return redirect(url_for('home'))
@@ -336,13 +346,14 @@ def approve_request(id):
         event_id = int(time.time())
         date_1 = req.start_date
         date_2 = req.finish_date
+        notification = req.notification
         if req.status == stat3.name:
             req.status = stat2.name
             req.event_id = event_id
             current_user.used_days = current_user.used_days + req.sum
             db.session.add(req)
             db.session.commit()
-            create_event(date_1, date_2, event_id)
+            create_event(date_1, date_2, event_id, notification)
             flash('Request approved!', 'success')
             return redirect(url_for('requests'))
         req.status = stat2.name
@@ -350,7 +361,7 @@ def approve_request(id):
         current_user.used_days = current_user.used_days + req.sum
         db.session.add(req)
         db.session.commit()
-        create_event(date_1, date_2, event_id)
+        create_event(date_1, date_2, event_id, notification)
         flash('Request approved!', 'success')
         return redirect(url_for('requests'))
     flash('You are not an administrator!', 'danger')
