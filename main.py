@@ -102,6 +102,7 @@ class MyModelView(ModelView):
             return True
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
+    can_delete = False
 
 
 admin.add_menu_item(MenuLink(name='Home Page', url='/'))
@@ -291,10 +292,13 @@ def home():
 @app.route('/requests')
 @login_required
 def requests():
-    if current_user.is_authenticated and session.get('role') == "Admin":
-        allrequests = Request.query.all()
-        return render_template('requests.html', allrequests=allrequests)
-    flash('You are not an administrator!', 'danger')
+    if current_user.active:
+        if current_user.is_authenticated and session.get('role') == "Admin":
+            allrequests = Request.query.all()
+            return render_template('requests.html', allrequests=allrequests)
+        flash('You are not an administrator!', 'danger')
+        return redirect(url_for('home'))
+    flash('Sorry, your account is disabled!', 'danger')
     return redirect(url_for('home'))
 
 
