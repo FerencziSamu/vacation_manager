@@ -1,9 +1,15 @@
 {% extends 'layout.html'%}
 {% block body %}
+{% from "includes/_formhelpers.html" import render_field %}
 <h1> Requests page
     <h3> Welcome, {{current_user.name}}!</h3>
 </h1>
-<a class="btn btn-success" href="/add_request">Add leave Request</a>
+<form method="POST" action="">
+    <div class="form-group">
+        {{ render_field(sform.item, class_="form-control") }}
+    </div>
+        <p><input class="btn btn-primary" type="submit" value="Submit"></p>
+</form>
 <hr>
 <table class="table table-striped text-center">
     <tr>
@@ -19,7 +25,7 @@
     {% for request in allrequests %}
     <tr>
         <td>{{request.id}}</td>
-        <td>{{request.employee}}</td>
+        <td bgcolor=#f9f9f9>{{request.employee}}</td>
         <td>{{request.start_date}}</td>
         <td>{{request.finish_date}}</td>
         {% if request.status == "Declined" %}<td bgcolor=#ff6c32>{{request.status}}</td>
@@ -40,6 +46,7 @@
     </tr>
     {% endfor %}
 </table>
+<a class="btn btn-success" href="/add_request" style="padding: 15px 15px;">Add leave Request</a>
 <a href="/admin" class="btn btn-primary" style="padding: 15px 15px;">Admin</a>
-<a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a>
+<a href="/" class="btn btn-danger" style="padding: 15px 15px;">Back</a>
 {% endblock %}

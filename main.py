@@ -6,7 +6,7 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.base import MenuLink
 from requests_oauthlib import OAuth2Session
 from requests.exceptions import HTTPError
-from wtforms import Form, DateField, BooleanField
+from wtforms import Form, DateField, BooleanField, StringField
 from _datetime import date
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -16,7 +16,6 @@ import os
 import json
 import pickle
 import time
-
 
 # Postgres and db set up
 app = Flask(__name__)
@@ -100,6 +99,7 @@ class MyModelView(ModelView):
     def is_accessible(self):
         if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
             return True
+
     form_excluded_columns = 'tokens', 'used_days', 'users'
     column_exclude_list = 'tokens'
     can_delete = False
@@ -279,6 +279,10 @@ class RequestForm(Form):
     notification = BooleanField('I would like to get notifications regarding my request.')
 
 
+class SearchForm(Form):
+    item = StringField('You can search for requests with the EXACT NAME of the employee!')
+
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
@@ -289,13 +293,24 @@ def home():
     return render_template('home.html')
 
 
-@app.route('/requests')
+@app.route('/requests', methods=['GET', 'POST'])
 @login_required
 def requests():
     if current_user.active:
         if current_user.is_authenticated and session.get('role') == "Admin":
+            sform = SearchForm(request.form)
+            if request.method == 'POST':
+                item = sform.item.data
+                user = User.query.filter_by(name=item).first()
+                filter_dict = {'employee': item}
+                result = Request.query.filter_by(**filter_dict)
+                if item == '' or item is None or user is None:
+                    flash('Could not find any request!', 'danger')
+                    allrequests = Request.query.all()
+                    return render_template('requests.html', allrequests=allrequests, sform=sform)
+                return render_template('requests.html', allrequests=result, sform=sform)
             allrequests = Request.query.all()
-            return render_template('requests.html', allrequests=allrequests)
+            return render_template('requests.html', allrequests=allrequests, sform=sform)
         flash('You are not an administrator!', 'danger')
         return redirect(url_for('home'))
     flash('Sorry, your account is disabled!', 'danger')
