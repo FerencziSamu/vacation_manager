@@ -283,11 +283,6 @@ class SearchForm(Form):
     item = StringField('You can search for requests with the EXACT NAME of the employee!')
 
 
-@app.route('/test', methods=['GET', 'POST'])
-def test():
-    return render_template('test.html')
-
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'GET':
