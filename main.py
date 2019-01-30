@@ -321,6 +321,7 @@ def add_request():
                 if days > sum > 0:
                     req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name,
                                   status=stat1.name, notification=notification)
+                    current_user.used_days = current_user.used_days + req.sum
                     db.session.add(req)
                     db.session.commit()
 
@@ -361,7 +362,6 @@ def approve_request(id):
             return redirect(url_for('requests'))
         req.status = stat2.name
         req.event_id = event_id
-        current_user.used_days = current_user.used_days + req.sum
         db.session.add(req)
         db.session.commit()
         create_event(date_1, date_2, event_id, notification)
@@ -381,6 +381,7 @@ def reject_request(id):
         try:
             if req.status == stat1.name:
                 req.status = stat3.name
+                current_user.used_days = current_user.used_days - req.sum
                 db.session.add(req)
                 db.session.commit()
                 flash('Request rejected!', 'success')

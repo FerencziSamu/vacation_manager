@@ -20,7 +20,7 @@
         <div><a href="/logout" class="btn btn-danger" style="padding: 15px 15px;">Logout</a></div>
         {% endif %}
         {% if session.get('role') == "Employee" and current_user.active %}
-        Hi {{ current_user.name }}!
+    <div><h2>Hi, {{ current_user.name }}!</h2></div>
         <iframe src="https://calendar.google.com/calendar/b/1/embed?showTitle=0&amp;showPrint=0&amp;showTabs=0&amp;height=600&amp;wkst=2&amp;bgcolor=%23ccffff&amp;src=invenshure.com_bestbp3r6lvncuqqikfl5ghlno%40group.calendar.google.com&amp;color=%238C500B&amp;ctz=Europe%2FBudapest" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
         <div>
             <a href="/add_request" class="btn btn-success" style="padding: 15px 15px;">Create leave request</a>

@@ -14,7 +14,11 @@
         {{ render_field(form.notification, class_="form-control") }}
     </div>
     <p><input class="btn btn-primary" type="submit" value="Submit">
+    {% if session.get('role') == "Employee" and current_user.active %}
     <a href="/" class="btn btn-danger">Back</a>
+    {% else %}
+    <a href="/requests" class="btn btn-danger">Back</a>
+    {% endif %}
     </p>
 </form>
 {% endblock %}
