@@ -4,19 +4,19 @@
     <meta name="Holiday_manager" charset="UTF-8" content="width=device-width, initial-scale=1">
     <title>Holiday Manager</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.1/css/bootstrap-datepicker3.css" rel="stylesheet" id="bootstrap-css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <style>
     body, html {
       height: 100%;
       margin: 0;
     }
-
     .bg {
       /* The image used */
       background-image: url('/static/img/background.jpg');
-
       /* Full height */
       height: 100%;
-
       /* Center and scale the image nicely */
       background-position: center;
       background-repeat: no-repeat;
@@ -34,6 +34,35 @@
     {% block body %}{% endblock %}
 </div>
 </div>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.1/js/bootstrap-datepicker.min.js"></script>
+	<script>
+	    $(function () {
+	        $('#datepicker').datepicker({
+	            format: "yyyy-mm-dd",
+	            autoclose: true,
+	            todayHighlight: true,
+		        showOtherMonths: true,
+		        selectOtherMonths: true,
+		        autoclose: true,
+		        changeMonth: true,
+		        changeYear: true,
+		        orientation: "button"
+	        });
+	    });
+	    $(function () {
+	        $('#datepicker2').datepicker({
+	            format: "yyyy-mm-dd",
+	            autoclose: true,
+	            todayHighlight: true,
+		        showOtherMonths: true,
+		        selectOtherMonths: true,
+		        autoclose: true,
+		        changeMonth: true,
+		        changeYear: true,
+		        orientation: "button"
+	        });
+	    });
+	</script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 </body>
 </html>
