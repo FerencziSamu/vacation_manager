@@ -184,13 +184,13 @@ def callback():
             user = User()
             user.email = email
             user.role_id = role3.id
-            user.category_id = cat0.id  # default category for every user
+            user.category_id = cat0.id
             user.active = True
         elif user is None:
             user = User()
             user.email = email
             user.role_id = role0.id
-            user.category_id = cat0.id  # default category for every user
+            user.category_id = cat0.id
         user.name = user_data['name']
         user.tokens = json.dumps(token)
         db.session.add(user)
