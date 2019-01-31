@@ -184,14 +184,15 @@ def callback():
             user = User()
             user.email = email
             user.role_id = role3.id
+            user.category_id = cat0.id  # default category for every user
             user.active = True
         elif user is None:
             user = User()
             user.email = email
             user.role_id = role0.id
+            user.category_id = cat0.id  # default category for every user
         user.name = user_data['name']
         user.tokens = json.dumps(token)
-        user.category_id = cat0.id  # default category for every user
         db.session.add(user)
         db.session.commit()
         login_user(user)
@@ -335,7 +336,6 @@ def add_request():
                 date_1 = date(start.year, start.month, start.day)
                 date_2 = date(finish.year, finish.month, finish.day)
                 sum = (date_2 - date_1).days
-
                 if days > sum > 0:
                     req = Request(sum=sum, start_date=start, finish_date=finish, employee=current_user.name,
                                   status=stat1.name, notification=notification)
