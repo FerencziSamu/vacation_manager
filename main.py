@@ -217,9 +217,12 @@ def get_google_auth(state=None, token=None):
     return oauth
 
 
-def create_event(date_1, date_2, event_id, notification):
+def create_event(date_1, date_2, event_id, notification, req_id):
     creds = None
-    email = current_user.email
+    req = Request.query.get(req_id)
+    employee = req.employee
+    user = User.query.filter_by(name=employee).first()
+    email = user.email
 
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -238,7 +241,7 @@ def create_event(date_1, date_2, event_id, notification):
     event = {
         "start": {"date": str(date_1)},
         "end": {"date": str(date_2)},
-        "summary": "Holiday for " + current_user.name,
+        "summary": "Holiday for " + user.name,
         "id": event_id,
         "attendees": [{
             "email": email
@@ -359,6 +362,7 @@ def add_request():
 def approve_request(id):
     if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
         req = Request.query.get(id)
+        user = User.query.filter_by(name=req.employee).first()
         event_id = int(time.time())
         date_1 = req.start_date
         date_2 = req.finish_date
@@ -366,10 +370,10 @@ def approve_request(id):
         if req.status == stat3.name:
             req.status = stat2.name
             req.event_id = event_id
-            current_user.used_days = current_user.used_days + req.sum
+            user.used_days = user.used_days + req.sum
             db.session.add(req)
             db.session.commit()
-            create_event(date_1, date_2, event_id, notification)
+            create_event(date_1, date_2, event_id, notification, req_id=id)
             flash('Request approved!', 'success')
             return redirect(url_for('requests'))
         elif req.status == stat2.name:
@@ -379,7 +383,7 @@ def approve_request(id):
         req.event_id = event_id
         db.session.add(req)
         db.session.commit()
-        create_event(date_1, date_2, event_id, notification)
+        create_event(date_1, date_2, event_id, notification, req_id=id)
         flash('Request approved!', 'success')
         return redirect(url_for('requests'))
     flash('You are not an administrator!', 'danger')
@@ -392,11 +396,12 @@ def approve_request(id):
 def reject_request(id):
     if current_user.is_authenticated and session.get('role') == "Admin" and current_user.active:
         req = Request.query.get(id)
+        user = User.query.filter_by(name=req.employee).first()
         event_id = req.event_id
         try:
             if req.status == stat1.name:
                 req.status = stat3.name
-                current_user.used_days = current_user.used_days - req.sum
+                user.used_days = user.used_days - req.sum
                 db.session.add(req)
                 db.session.commit()
                 flash('Request rejected!', 'success')
@@ -406,7 +411,7 @@ def reject_request(id):
                 return redirect(url_for('requests'))
             elif event_id is not None:
                 req.status = stat3.name
-                current_user.used_days = current_user.used_days - req.sum
+                user.used_days = user.used_days - req.sum
                 db.session.add(req)
                 db.session.commit()
                 delete_event(event_id)
