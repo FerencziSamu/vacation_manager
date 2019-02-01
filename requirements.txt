@@ -2,7 +2,10 @@ flask
 flask-sqlalchemy
 psycopg2-binary
 flask-login
-pyopenssl
 flask_oauthlib
 requests
 flask_admin
+google-api-python-client
+google_auth_oauthlib
+google.auth
+pyopenssl

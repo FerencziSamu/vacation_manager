@@ -23,7 +23,7 @@ POSTGRES = {
     'user': 'test',
     'pw': 'password',
     'db': 'test_db',
-    'host': '0.0.0.0',
+    'host': 'db',
     'port': '5432'
 }
 
@@ -434,4 +434,6 @@ def logout():
 
 if __name__ == '__main__':
     app.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
-app.run(host='127.0.0.1', debug=True, port=5000, ssl_context='adhoc')
+
+    app.run(host='0.0.0.0', debug=True, port=5000, ssl_context='adhoc')
+    #app.run(host='0.0.0.0', debug=True, port=5000)

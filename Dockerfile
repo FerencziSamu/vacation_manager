@@ -1,10 +1,10 @@
-FROM python:alpine3.7
+FROM python:3.7
+#RUN apt-get install postgres
+ADD  requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
+
 ADD  . ./app
 WORKDIR /app
-RUN apk update &&\
-    apk add --no-cache --virtual build-deps gcc python3-dev musl-dev &&\
-    apk add --no-cache postgresql-dev &&\
-   pip install -r requirements.txt &&\
-   apk del build-deps
+
 EXPOSE 5000:5000
-CMD python ./app/main.py
+CMD python ./main.py
